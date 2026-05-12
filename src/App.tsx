@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from "./lib/supabaseClient";
 import { Background } from './components/Background';
 import { Carousel } from './components/Carousel';
 import { EnterButton } from './components/EnterButton';
@@ -13,8 +14,69 @@ export default function App() {
   const [hoveredRole, setHoveredRole] = useState<Role | null>(null);
   const [rememberRole, setRememberRole] = useState(false);
 
+  const [user, setUser] = useState<any | null>(null);
+
   // Determine the background role (hover has preference for preview effect)
   const backgroundRole = hoveredRole || selectedRole;
+
+  useEffect(() => {
+    let mounted = true;
+    // initial fetch
+    supabase.auth.getUser().then(({ data }) => {
+      if (!mounted) return;
+      setUser((data as any)?.user ?? null);
+    }).catch(() => {});
+
+    // subscribe to auth changes and enforce pending role (for OAuth flows)
+    const res = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUser = (session as any)?.user ?? null;
+      setUser(currentUser);
+
+      try {
+        const pendingRole = typeof window !== 'undefined' ? localStorage.getItem('pending_role') : null;
+        if (!currentUser || !pendingRole) return;
+
+        // fetch profile role
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+        console.log('auth listener fetched profile', profileData, profileError);
+        if (profileError) {
+          console.error('profile fetch error', profileError);
+          await supabase.auth.signOut();
+          localStorage.removeItem('pending_role');
+          return;
+        }
+
+        const fetchedRole = (profileData as any)?.role as string | undefined | null;
+        if (!fetchedRole || fetchedRole !== pendingRole) {
+          alert('Access Denied: You cannot login in this role');
+          await supabase.auth.signOut();
+          localStorage.removeItem('pending_role');
+          return;
+        }
+
+        // roles match — clear pending and redirect
+        localStorage.removeItem('pending_role');
+        const redirectMap: Record<string, string> = {
+          admin: '/admin',
+          doctor: '/doctor',
+          reception: '/reception',
+          security: '/security',
+          ambulance: '/ambulance',
+        };
+        const destination = redirectMap[fetchedRole] ?? '/';
+        window.location.href = destination;
+      } catch (err) {
+        console.error('auth state handler error', err);
+      }
+    });
+
+    const subscription = (res as any)?.data?.subscription;
+    return () => subscription?.unsubscribe?.();
+  }, []);
 
   const handleEnter = () => {
     setViewMode('auth');

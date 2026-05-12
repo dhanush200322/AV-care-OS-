@@ -1,12 +1,10 @@
 import React, { useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { 
-  Float, 
   MeshDistortMaterial, 
   Sphere, 
   Torus, 
   Ring, 
-  Float as DreiFloat, 
   Points, 
   PointMaterial, 
   Stars,
