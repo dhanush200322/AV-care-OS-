@@ -2,7 +2,7 @@ import { Shield, Stethoscope, UserCog, Building2, Ambulance } from 'lucide-react
 
 export type RoleId = 'admin' | 'doctor' | 'reception' | 'security' | 'ambulance';
 
-export type ViewMode = 'selection' | 'auth';
+export type ViewMode = 'selection' | 'auth' | 'dashboard';
 
 export interface Role {
   id: RoleId;

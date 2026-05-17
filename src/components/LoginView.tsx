@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { Role } from '../types';
 import { SceneModels } from './SceneModels';
 import { User, Lock, Mail, ChevronLeft, LogIn, UserPlus, Eye, EyeOff, ShieldCheck, Hexagon, Activity, Siren } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../supabaseClient';
 
 interface LoginViewProps {
   role: Role;
@@ -19,7 +20,103 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const navigate = useNavigate();
+  
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      if (isLogin) {
+        const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+
+        if (authData.user) {
+          // STRICT ROLE VALIDATION
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', authData.user.id)
+            .single();
+          
+          if (profileError || !profile) {
+            await supabase.auth.signOut();
+            throw new Error("Neural profile mismatch. Access denied.");
+          }
+
+          if (profile.role !== role.id) {
+            await supabase.auth.signOut();
+            throw new Error("Unauthorized role access. Portal restriction active.");
+          }
+
+          // Successful login redirect based on role
+          navigate(`/${profile.role}/dashboard`);
+        }
+      } else {
+        if (password !== confirmPassword) {
+          throw new Error("Tokens do not match");
+        }
+
+        // Check if user already exists in profiles (prevent duplicate logic)
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+        
+        if (existingProfile) {
+          throw new Error("Identity already exists in neural registry.");
+        }
+
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+            }
+          }
+        });
+        if (signUpError) throw signUpError;
+        
+        if (data.user) {
+          // Initialize profile in database
+          const { error: profileInitError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: data.user.id, 
+                email: email, 
+                role: role.id, 
+                full_name: fullName 
+              }
+            ]);
+          
+          if (profileInitError) throw profileInitError;
+
+          if (!data.session) {
+            setIsLogin(true);
+            setPassword('');
+            setConfirmPassword('');
+            setSuccessMessage("Account protocol initialized. Please verify your email identifier before proceeding to access.");
+          } else {
+            navigate(`/${role.id}/dashboard`);
+          }
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   
   const containerVariants: any = {
     hidden: { opacity: 0, x: 20, filter: 'blur(10px)' },
@@ -32,128 +129,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
   };
 
   const isSpecial = role.id === 'doctor' || role.id === 'reception' || role.id === 'security' || role.id === 'ambulance';
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Only handle registration via form submit. Login is handled by handleLogin.
-    if (isLogin) return;
-    setError(null);
-    setInfo(null);
-    setLoading(true);
-    try {
-      if (!email || !password) {
-        setError('Email and password are required');
-        alert('Email and password are required');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('Password and confirmation do not match');
-        alert('Password and confirmation do not match');
-        return;
-      }
-
-      // Use supabase.auth.signUp per requirement
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
-      console.log('signUp response', signUpData, signUpError);
-      if (signUpError) {
-        setError(signUpError.message);
-        alert(`Sign-up error: ${signUpError.message}`);
-        return;
-      }
-
-      const user = (signUpData as any)?.user;
-
-      if (user && user.id) {
-        // Insert profile row with assigned role
-        const profileRow = { id: user.id, email, role: role.id };
-        const { data: insertData, error: insertError } = await supabase.from('profiles').insert(profileRow).select();
-        console.log('profile insert', insertData, insertError);
-        if (insertError) {
-          setError(insertError.message);
-          alert(`Sign-up succeeded but failed to create profile: ${insertError.message}`);
-        } else {
-          setInfo('Sign-up successful — profile created');
-          alert('Sign-up successful — profile created');
-          onBack();
-        }
-      } else {
-        // In some Supabase settings, user is null until email confirmation.
-        setInfo('Sign-up successful — please confirm your email before logging in');
-        alert('Sign-up successful — please confirm your email before logging in');
-      }
-    } catch (err: any) {
-      console.error('handleSignup error', err);
-      setError(err?.message ?? String(err));
-      alert(`Sign-up error: ${err?.message ?? String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Dedicated login flow implementing strict role enforcement
-  const handleLogin = async () => {
-    setError(null);
-    setInfo(null);
-    setLoading(true);
-    try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      console.log('signIn response', signInData, signInError);
-      if (signInError) {
-        setError(signInError.message);
-        return;
-      }
-
-      const user = (signInData as any)?.user;
-      if (!user || !user.id) {
-        setError('Authentication succeeded but no user returned');
-        return;
-      }
-
-      // Fetch profile role from profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-      console.log('fetched profile', profileData, profileError);
-
-      if (profileError) {
-        setError(profileError.message);
-        // Ensure no lingering session
-        await supabase.auth.signOut();
-        return;
-      }
-
-      const fetchedRole = (profileData as any)?.role as string | undefined | null;
-      console.log('fetched role', fetchedRole);
-
-      // Strict role enforcement
-      if (!fetchedRole || fetchedRole !== role.id) {
-        alert('Access Denied: You cannot login in this role');
-        await supabase.auth.signOut();
-        return;
-      }
-
-      setInfo('Login successful');
-
-      // Redirect mapping
-      const redirectMap: Record<string, string> = {
-        admin: '/admin',
-        doctor: '/doctor',
-        reception: '/reception',
-        security: '/security',
-        ambulance: '/ambulance',
-      };
-
-      const destination = redirectMap[fetchedRole] ?? '/';
-      // perform redirect
-      window.location.href = destination;
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div id="login-world" className={`relative w-full h-screen flex overflow-hidden bg-[#050505] ${isSpecial ? 'flex-row' : 'flex-row'}`}>
@@ -263,20 +238,38 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
             {/* Login / Toggle Tabs */}
             <div className="flex gap-6 mb-8 border-b border-white/5 pb-4">
               <button 
-                onClick={() => setIsLogin(true)}
+                onClick={() => {
+                  setIsLogin(true);
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
                 className={`text-[9px] font-bold tracking-[0.4em] uppercase transition-all ${isLogin ? 'text-white' : 'text-white/20 hover:text-white/40'}`}
               >
                 Identification
               </button>
               <button 
-                onClick={() => setIsLogin(false)}
+                onClick={() => {
+                  setIsLogin(false);
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
                 className={`text-[9px] font-bold tracking-[0.4em] uppercase transition-all ${!isLogin ? 'text-white' : 'text-white/20 hover:text-white/40'}`}
               >
                 Create Account
               </button>
             </div>
 
-            <form className="space-y-4" onSubmit={handleSignup}>
+            <form className="space-y-4" onSubmit={handleAuth}>
+              {error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-mono tracking-widest text-center">
+                  ERROR_CODE: {error.toUpperCase()}
+                </div>
+              )}
+              {successMessage && (
+                <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-mono tracking-widest text-center">
+                  MESSAGE: {successMessage.toUpperCase()}
+                </div>
+              )}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={isLogin ? 'login' : 'register'}
@@ -293,6 +286,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
                           placeholder="FULL NAME"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
+                          required={!isLogin}
                           className="w-full bg-white/[0.03] border-white/[0.05] text-white placeholder:text-white/10 border rounded-xl py-3.5 px-4 text-[11px] font-mono tracking-widest focus:outline-none focus:border-cyan-400 focus:bg-white/5 transition-all"
                         />
                       </div>
@@ -301,9 +295,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
                   <div className="relative group">
                     <input 
                       type="email" 
+                      placeholder={role.id === 'security' ? "SECURITY_ID / EMAIL" : (role.id === 'ambulance' ? "DRIVER_ID / EMAIL" : (role.id === 'reception' ? "RECEPTION_ID / EMAIL" : "CORE_IDENTIFIER"))}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder={role.id === 'security' ? "SECURITY_ID / EMAIL" : (role.id === 'ambulance' ? "DRIVER_ID / EMAIL" : (role.id === 'reception' ? "RECEPTION_ID / EMAIL" : "CORE_IDENTIFIER"))}
+                      required
                       className="w-full bg-white/[0.03] border-white/[0.05] text-white placeholder:text-white/10 border rounded-xl py-3.5 px-4 text-[11px] font-mono tracking-widest focus:outline-none focus:border-cyan-400 focus:bg-white/5 transition-all"
                     />
                   </div>
@@ -311,9 +306,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
                   <div className="relative group">
                     <input 
                       type={showPassword ? "text" : "password"} 
+                      placeholder="ACCESS_TOKEN"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="ACCESS_TOKEN"
+                      required
                       className="w-full bg-white/[0.03] border-white/[0.05] text-white placeholder:text-white/10 border rounded-xl py-3.5 px-4 pr-12 text-[11px] font-mono tracking-widest focus:outline-none focus:border-cyan-400 focus:bg-white/5 transition-all"
                     />
                     <button 
@@ -329,9 +325,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
                     <div className="relative group">
                       <input 
                         type="password" 
+                        placeholder="CONFIRM_TOKEN"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="CONFIRM_TOKEN"
+                        required={!isLogin}
                         className="w-full bg-white/[0.03] border-white/[0.05] text-white placeholder:text-white/10 border rounded-xl py-3.5 px-4 text-[11px] font-mono tracking-widest focus:outline-none focus:border-cyan-400 focus:bg-white/5 transition-all"
                       />
                     </div>
@@ -339,16 +336,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
                 </motion.div>
               </AnimatePresence>
 
-              {error && <div className="text-sm text-red-400 pt-2">{error}</div>}
-              {info && <div className="text-sm text-emerald-400 pt-2">{info}</div>}
-
               <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.98 }}
-                type={isLogin ? 'button' : 'submit'}
-                onClick={isLogin ? handleLogin : undefined}
+                type="submit"
                 disabled={loading}
-                className="w-full py-4 mt-4 rounded-xl font-black text-[10px] tracking-[0.4em] uppercase text-white relative overflow-hidden transition-all duration-300 shadow-lg group"
+                whileHover={{ scale: loading ? 1 : 1.03 }}
+                whileTap={{ scale: loading ? 1 : 0.98 }}
+                className={`w-full py-4 mt-4 rounded-xl font-black text-[10px] tracking-[0.4em] uppercase text-white relative overflow-hidden transition-all duration-300 shadow-lg group ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 style={{ 
                   background: `linear-gradient(135deg, ${role.color}, ${role.id === 'reception' || role.id === 'security' || role.id === 'ambulance' ? '#4F46E5' : (role.id === 'doctor' ? '#16a34a' : '#1e1b4b')})`,
                   boxShadow: `0 10px 30px -10px ${role.color}66`
@@ -358,7 +351,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                   <div className="absolute top-0 -left-[100%] w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[30deg] animate-[shimmer_2s_infinite]" />
                 </div>
-                <span className="relative z-10">{isLogin ? (role.id === 'security' ? 'Unlock System' : (role.id === 'ambulance' ? 'Start Response' : 'Execute Access')) : 'Initialize Protocol'}</span>
+                <span className="relative z-10">
+                  {loading ? 'Processing...' : (isLogin ? (role.id === 'security' ? 'Unlock System' : (role.id === 'ambulance' ? 'Start Response' : 'Execute Access')) : 'Initialize Protocol')}
+                </span>
               </motion.button>
             </form>
 
@@ -366,10 +361,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
               <motion.button 
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  try { localStorage.setItem('pending_role', role.id); } catch {}
-                  supabase.auth.signInWithOAuth({ provider: 'google' });
-                }}
                 className="w-full py-3.5 rounded-xl bg-white text-black text-[10px] font-black tracking-[0.2em] uppercase flex items-center justify-center gap-3 transition-all ring-1 ring-white/10 shadow-sm hover:shadow-md"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
