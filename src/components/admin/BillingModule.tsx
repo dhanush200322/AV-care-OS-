@@ -25,15 +25,7 @@ import {
 import { useStore, Invoice, Payment, InsuranceClaim, Refund } from '../../store/useStore';
 import { cn } from '../../lib/utils';
 import { GenerateInvoiceModal, InvoiceModal } from './BillingModals';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
+import { EmptyState } from './EmptyState';
 
 // --- Components ---
 
@@ -91,11 +83,10 @@ export const BillingModule: React.FC<{ subTab?: string }> = ({ subTab = 'invoice
   return (
     <div className="space-y-8">
       {/* Header Stat Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Revenue" value={`₹${(stats.totalRev / 1000).toFixed(1)}k`} icon={TrendingUp} color="text-purple-400" trend={12} />
-        <StatCard title="Pending" value={`₹${(stats.pending / 1000).toFixed(1)}k`} icon={Clock} color="text-amber-400" trend={-5} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatCard title="Total Revenue" value={`₹${stats.totalRev.toLocaleString()}`} icon={TrendingUp} color="text-purple-400" />
+        <StatCard title="Pending Outstanding" value={`₹${stats.pending.toLocaleString()}`} icon={Clock} color="text-amber-400" />
         <StatCard title="Collection (24h)" value={`₹${stats.today.toLocaleString()}`} icon={ArrowUpRight} color="text-emerald-400" />
-        <StatCard title="Insurance Yield" value="94.2%" icon={ShieldCheck} color="text-blue-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -129,7 +120,13 @@ export const BillingModule: React.FC<{ subTab?: string }> = ({ subTab = 'invoice
 
           <div className="p-8 rounded-[32px] bg-white/[0.03] border border-white/10 backdrop-blur-3xl overflow-hidden shadow-2xl">
             {subTab === 'invoices' && (
-              <table className="w-full text-left">
+              <>
+                {filteredInvoices.length === 0 ? (
+                  <div className="py-12 text-center text-white/40 uppercase tracking-widest text-xs font-black">
+                     No invoices found.
+                  </div>
+                ) : (
+                  <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-white/5">
                     <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-white/20 px-4">Invoice ID</th>
@@ -189,6 +186,8 @@ export const BillingModule: React.FC<{ subTab?: string }> = ({ subTab = 'invoice
                   ))}
                 </tbody>
               </table>
+                )}
+              </>
             )}
 
             {subTab === 'payments' && (
@@ -283,76 +282,7 @@ export const BillingModule: React.FC<{ subTab?: string }> = ({ subTab = 'invoice
             )}
 
             {subTab === 'reports' && (
-              <div className="space-y-8">
-                 <div className="h-[400px] w-full pt-4">
-                   <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={[
-                        { date: 'May 10', revenue: 120000 },
-                        { date: 'May 11', revenue: 145000 },
-                        { date: 'May 12', revenue: 130000 },
-                        { date: 'May 13', revenue: 190000 },
-                        { date: 'May 14', revenue: 165000 },
-                        { date: 'May 15', revenue: 240000 },
-                        { date: 'May 16', revenue: stats.totalRev },
-                      ]}>
-                        <defs>
-                          <linearGradient id="revGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6C3BFF" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#6C3BFF" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                        <XAxis 
-                          dataKey="date" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 'bold' }} 
-                        />
-                        <YAxis 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 'bold' }}
-                          tickFormatter={(val) => `₹${val/1000}k`}
-                        />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#0f172a', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}
-                          itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
-                        />
-                        <Area type="monotone" dataKey="revenue" stroke="#6C3BFF" strokeWidth={4} fillOpacity={1} fill="url(#revGradient)" />
-                      </AreaChart>
-                   </ResponsiveContainer>
-                 </div>
-                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-                       <h4 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Revenue Analytics Breakdown</h4>
-                       <div className="space-y-3">
-                          {[
-                            { label: 'Outpatient Billing', val: '64%', color: 'bg-purple-500' },
-                            { label: 'IPD / Surgery', val: '22%', color: 'bg-blue-500' },
-                            { label: 'Lab & Diagnostics', val: '14%', color: 'bg-emerald-500' },
-                          ].map(item => (
-                            <div key={item.label} className="space-y-1">
-                               <div className="flex justify-between text-[10px] font-bold text-white uppercase tracking-widest">
-                                  <span>{item.label}</span>
-                                  <span>{item.val}</span>
-                               </div>
-                               <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                  <div className={cn("h-full rounded-full", item.color)} style={{ width: item.val }} />
-                               </div>
-                            </div>
-                          ))}
-                       </div>
-                    </div>
-                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col justify-center text-center">
-                       <BarChart3 className="mx-auto text-purple-400 mb-4" size={32} />
-                       <h4 className="text-sm font-bold text-white">Intelligence Protocol</h4>
-                       <p className="text-[10px] text-white/20 uppercase font-black tracking-widest mt-2 leading-relaxed">
-                          AI predicts a 15.4% increase in revenue next week based on scheduled diagnostic procedures.
-                       </p>
-                    </div>
-                 </div>
-              </div>
+              <EmptyState title="No Financial Analytics" description="There is currently not enough data to generate financial reports and forecasts." icon={BarChart3} />
             )}
           </div>
         </div>

@@ -1,325 +1,424 @@
-
-import React from 'react';
-import { motion } from 'motion/react';
-import { 
-  Users, 
-  Stethoscope, 
-  Siren, 
-  Calendar, 
-  Building2, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  ChevronRight,
-  ExternalLink,
-  Cake,
-  SendHorizontal,
-  TrendingUp,
-  CreditCard
-} from 'lucide-react';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
-  Legend
-} from 'recharts';
-import { ADMIN_STATS, ACTIVITY_FEED, CHART_DATA, BIRTHDAYS, BRANCHES_DATA } from '../../constants/mockData';
-import { cn } from '../../lib/utils';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { HeartPulse, Inbox, Activity, Calendar, Users, CreditCard, Gift, Star, Send, X, PartyPopper } from 'lucide-react';
+import { EmptyState } from './EmptyState';
 import { useStore } from '../../store/useStore';
+import { cn } from '../../lib/utils';
 
-const iconMap: any = {
-  Users, Stethoscope, Siren, Calendar, Building2
-};
+// Mock data for today's special events (Birthdays / Achievements) including all requested staff roles
+const TODAY_EVENTS = [
+  {
+    id: 1,
+    type: 'birthday',
+    name: 'Dr. Sarah Jenkins',
+    role: 'Chief Cardiologist',
+    department: 'doctors',
+    message: "Dr. Jenkins' Birthday 🎂",
+    details: "Today is Dr. Sarah Jenkins's Birthday! Let's send her a celebratory heart-saving wish!",
+    avatar: '👩‍⚕️'
+  },
+  {
+    id: 2,
+    type: 'achievement',
+    name: 'Michael Chang',
+    role: 'Security Lead',
+    department: 'roles',
+    message: "100% Safety Clearance 🌟",
+    details: "Michael Chang achieved 100% Zero-Breach Safety clearance and complete security integrity!",
+    avatar: '👮‍♂️'
+  },
+  {
+    id: 3,
+    type: 'birthday',
+    name: 'Ambulance Driver Rajesh',
+    role: 'Emergency Ambulance Pilot',
+    department: 'notifications',
+    message: "Pilot Rajesh's Birthday 🚑",
+    details: "It is Pilot Rajesh's Birthday today! Wishing him safe routes and speedy rescues across the city!",
+    avatar: '👨‍✈️'
+  },
+  {
+    id: 4,
+    type: 'achievement',
+    name: 'Nurse Emily Cooper',
+    role: 'Ward 4B Charge Nurse',
+    department: 'messages',
+    message: "Clinical Hero Nominee 🏆",
+    details: "Nurse Emily was nominated for the Healthcare Hero of the Month award for outstanding clinical care!",
+    avatar: '👩‍⚕️'
+  }
+];
 
 export const DashboardOverview: React.FC = () => {
-  const { invoices, patients } = useStore();
+  const { 
+    patients, 
+    invoices, 
+    broadcasts, 
+    addNotification, 
+    birthdayPeople, 
+    sentWishes, 
+    addSentWish, 
+    wishingDashboards 
+  } = useStore();
+
+  const [selectedCelebrant, setSelectedCelebrant] = useState<any | null>(null);
+  const [wishChannel, setWishChannel] = useState<'SMS' | 'Email' | 'WhatsApp' | 'Dashboard'>('WhatsApp');
+  const [selectedWishDashboard, setSelectedWishDashboard] = useState<string>('Main Lobby Portal');
+  const [wishSenderName, setWishSenderName] = useState<string>('Hospital Admin Office');
+  const [wishMessage, setWishMessage] = useState<string>('');
+  const [wishSuccess, setWishSuccess] = useState<boolean>(false);
+  const [wishedEvents, setWishedEvents] = useState<Set<string>>(new Set());
   
-  const totalRevenue = invoices
-    .filter(inv => inv.status === 'Paid')
-    .reduce((acc, curr) => acc + curr.amount, 0);
-  
-  // Dynamic stats calculation
-  const dynamicStats = ADMIN_STATS.map(stat => {
-    if (stat.title === 'Pending Billing') {
-      const pendingCount = invoices.filter(i => i.status === 'Pending').length;
-      return { ...stat, value: pendingCount.toString() };
-    }
-    if (stat.title === 'Total Patients') {
-      return { ...stat, value: patients.length.toLocaleString() };
-    }
-    return stat;
-  });
+  const totalRevenue = invoices.filter(inv => inv.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0);
+
+  // Live Birthday Calculations for current calendar simulation (May 20, 2026)
+  const todayBirthdays = React.useMemo(() => {
+    return birthdayPeople.filter(p => p.month === 5 && p.day === 20);
+  }, [birthdayPeople]);
+
+  const upcomingBirthdays = React.useMemo(() => {
+    return birthdayPeople.filter(p => !(p.month === 5 && p.day === 20));
+  }, [birthdayPeople]);
+
+  const notificationCounter = React.useMemo(() => {
+    // Counts how many of today's birthdays have not yet been wished today on any channel
+    const wishedNames = new Set(
+      sentWishes
+        .filter(w => w.dateSent === new Date().toISOString().split('T')[0])
+        .map(w => w.recipientName)
+    );
+    return todayBirthdays.filter(p => !wishedNames.has(p.name)).length;
+  }, [todayBirthdays, sentWishes]);
+
+  const handleDispatchQuickWish = () => {
+    if (!selectedCelebrant || !wishMessage) return;
+    
+    addSentWish({
+      recipientName: selectedCelebrant.name,
+      role: selectedCelebrant.category,
+      wishType: wishChannel,
+      content: wishMessage,
+      senderName: wishSenderName,
+      dashboardSource: selectedWishDashboard,
+      timeSent: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+
+    setWishSuccess(true);
+    setWishedEvents(prev => new Set(prev).add(selectedCelebrant.id));
+    setTimeout(() => {
+      setWishSuccess(false);
+      setSelectedCelebrant(null);
+    }, 1500);
+  };
+
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* breadcrumb */}
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.4em] text-white/30 font-bold mb-2">
-        <span>Admin</span>
-        <ChevronRight size={10} />
-        <span className="text-purple-400">Dashboard</span>
-      </div>
-
-      <header>
-        <h1 className="text-3xl font-light tracking-tight text-white mb-2">
-          Systems <span className="font-bold text-purple-500">Overview</span>
-        </h1>
-        <p className="text-white/40 text-sm tracking-widest font-light">
-          Operational status and real-time biometric feed from <span className="text-white/60">AV CARE CORE</span>.
-        </p>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-20">
+      
+      {/* 1. HERO HEADER */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-white/5 relative z-10 w-full overflow-hidden">
+        <div className="space-y-1 w-full max-w-full">
+          <div className="flex items-center gap-2 mb-1 w-full">
+             <HeartPulse className="w-5 h-5 flex-shrink-0 text-cyan-500" />
+             <h1 className="text-xl md:text-3xl font-light tracking-tight text-white capitalize whitespace-nowrap overflow-hidden text-ellipsis w-full">
+               Admin <span className="font-bold text-cyan-500">Dashboard</span>
+             </h1>
+          </div>
+          <p className="text-white/40 text-[10px] md:text-xs tracking-widest font-black uppercase flex items-center gap-2 w-full truncate">
+            <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </p>
+        </div>
       </header>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        {dynamicStats.map((stat, i) => {
-          const Icon = iconMap[stat.icon];
-          return (
-            <motion.div
-              key={stat.title}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.1 }}
-              className="p-6 rounded-[24px] bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all group relative overflow-hidden flex flex-col justify-between h-40 shadow-xl"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br opacity-10 blur-2xl transition-opacity group-hover:opacity-20" 
-                   style={{ background: `linear-gradient(to bottom right, ${stat.color}, transparent)` }} />
-              
-              <div className="flex justify-between items-start">
-                <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/60 group-hover:text-white transition-colors">
-                  <Icon size={20} />
-                </div>
-                <div className={cn(
-                  "flex items-center gap-1 text-[10px] font-black tracking-widest uppercase",
-                  stat.status === 'up' ? 'text-emerald-400' : stat.status === 'down' ? 'text-red-400' : 'text-slate-500'
-                )}>
-                  {stat.trend !== '0' && (stat.status === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />)}
-                  {stat.trend}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40 mb-1">{stat.title}</p>
-                <p className="text-2xl font-black text-white">{stat.value}</p>
-              </div>
-            </motion.div>
-          );
-        })}
-        {/* Extra Premium Card for Revenue/Billing */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5 }}
-          className="p-6 rounded-[24px] bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all group relative overflow-hidden flex flex-col justify-between h-40 shadow-xl"
-        >
-          <div className="flex justify-between items-start">
-            <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-emerald-400">
-              <CreditCard size={20} />
-            </div>
-            <div className="text-[10px] font-black tracking-widest uppercase text-emerald-400">
-              Target 102%
-            </div>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40 mb-1">MTD Revenue</p>
-            <p className="text-2xl font-black text-white">₹{(totalRevenue / 1000000).toFixed(1)}M</p>
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Main Chart */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          <div className="p-8 rounded-[32px] bg-white/[0.03] border border-white/10 backdrop-blur-3xl flex flex-col gap-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-white tracking-tight">Biometric Traffic</h3>
-                <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Patient influx comparison (7 days)</p>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-purple-500" />
-                  <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest">Influx</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-cyan-500" />
-                  <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest">Resolved</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={CHART_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorPatients" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6C3BFF" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#6C3BFF" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorCases" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 700 }}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 700 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
-                    itemStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}
-                  />
-                  <Area type="monotone" dataKey="patients" stroke="#6C3BFF" strokeWidth={3} fillOpacity={1} fill="url(#colorPatients)" />
-                  <Area type="monotone" dataKey="cases" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorCases)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Analytics Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div className="p-8 rounded-[32px] bg-white/[0.03] border border-white/10 flex flex-col gap-8 shadow-xl">
-                <div className="flex items-center justify-between">
-                   <div>
-                      <h3 className="text-lg font-bold text-white tracking-tight">Node Load Protocol</h3>
-                      <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Branch patient distribution</p>
-                   </div>
-                   <TrendingUp className="text-purple-400" size={20} />
-                </div>
-                <div className="h-[200px] w-full">
-                   <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={BRANCHES_DATA}>
-                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                         <XAxis 
-                           dataKey="name" 
-                           axisLine={false} 
-                           tickLine={false} 
-                           hide
-                         />
-                         <Tooltip 
-                            contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
-                            itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
-                         />
-                         <Bar dataKey="patients" radius={[10, 10, 0, 0]}>
-                            {BRANCHES_DATA.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={index === 0 ? '#6C3BFF' : '#3B82F6'} opacity={0.8} />
-                            ))}
-                         </Bar>
-                      </BarChart>
-                   </ResponsiveContainer>
-                </div>
+      {/* CLINICAL BIRTHDAY CELEBRATIONS HUB (AUTOMATED WIDGET) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-20">
+         {/* Left Column: Today's Active Celebrants */}
+         <div className="lg:col-span-2 p-6 rounded-3xl bg-[#0f1225]/85 border border-purple-500/10 backdrop-blur-3xl space-y-4">
+           <div className="flex items-center justify-between border-b border-white/5 pb-3">
+             <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-fuchsia-500 animate-[bounce_2s_infinite]" />
+                <h2 className="text-xs font-black uppercase text-white tracking-widest leading-none">Today's Celebrants Widget</h2>
              </div>
-
-             <div className="p-8 rounded-[32px] bg-white/[0.03] border border-white/10 flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-white tracking-tight">Live Pulse</h3>
-                  <button className="text-[10px] font-black uppercase text-purple-400 hover:text-purple-300 tracking-widest flex items-center gap-1 group transition-colors">
-                    FULL LOGS <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {ACTIVITY_FEED.map((item) => (
-                    <div key={item.id} className="flex gap-4 group cursor-pointer hover:bg-white/5 p-2 rounded-2xl transition-colors">
-                      <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center border border-white/5",
-                        item.type === 'emergency' ? 'bg-red-500/10 text-red-400' : 'bg-purple-500/10 text-purple-400'
-                      )}>
-                        <Siren size={18} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-0.5">
-                          <span className="text-xs font-bold text-white group-hover:text-purple-400 transition-colors uppercase tracking-tight">{item.user}</span>
-                          <span className="text-[9px] text-white/20 font-bold uppercase">{item.time}</span>
-                        </div>
-                        <p className="text-[11px] text-white/40 leading-relaxed font-medium">{item.action}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-             </div>
-
-             {/* Birthday Reminder Placeholder */}
-             <div className="p-8 rounded-[32px] bg-gradient-to-br from-purple-500/10 to-indigo-600/10 border border-purple-500/20 flex flex-col gap-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                   <Cake size={120} className="rotate-12" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                    Unit Birthdays <span className="text-[14px]">🎉</span>
-                  </h3>
-                  <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-bold mt-1">Today's Celebrations</p>
-                </div>
-                <div className="space-y-4 mt-2">
-                  {BIRTHDAYS.map((bday, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between group">
-                      <div>
-                        <p className="text-xs font-black text-white uppercase tracking-wider">{bday.name}</p>
-                        <p className="text-[9px] text-purple-400/80 font-bold uppercase tracking-widest">{bday.role} DEPT</p>
-                      </div>
-                      <button className="p-3 rounded-full bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-95">
-                        <SendHorizontal size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-auto pt-4 flex flex-col gap-1 items-center justify-center text-center">
-                  <p className="text-[9px] text-white/20 uppercase tracking-widest font-black">Pulse-Check</p>
-                  <div className="flex gap-1">
-                    {[1,2,3,4,5].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-purple-500/30" />)}
-                  </div>
-                </div>
-             </div>
-          </div>
-        </div>
-
-        {/* Right Sidebar Mini List */}
-        <div className="lg:col-span-4 space-y-6">
-           <div className="p-8 rounded-[32px] bg-white/[0.03] border border-white/10 flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white tracking-tight">Active Branches</h3>
-                  <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Protocol Status</p>
-                </div>
-                <button className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors">
-                  <ExternalLink size={18} />
-                </button>
-              </div>
-              <div className="space-y-4">
-                {BRANCHES_DATA.map((branch) => (
-                  <div key={branch.id} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-purple-500/30 transition-all group">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-black text-white group-hover:text-purple-400 transition-colors">{branch.name}</span>
-                      <div className={cn(
-                        "w-2 h-2 rounded-full",
-                        branch.status === 'Operational' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-amber-500 shadow-[0_0_10px_#f59e0b]'
-                      )} />
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] text-white/40 font-bold uppercase tracking-widest">
-                       <span>{branch.doctors} Doctors</span>
-                       <div className="w-1 h-1 rounded-full bg-white/10" />
-                       <span>{branch.patients} Active</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="w-full py-4 rounded-2xl bg-purple-500 text-white font-black text-[10px] tracking-[0.4em] uppercase shadow-lg shadow-purple-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                + ADD NEW FACILITY
-              </button>
+             {notificationCounter > 0 && (
+                <span className="bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-400 font-extrabold text-[9px] px-2.5 py-1 rounded-full animate-pulse uppercase tracking-widest">
+                  ★ {notificationCounter} Action Required
+                </span>
+             )}
            </div>
-        </div>
+
+           {todayBirthdays.length === 0 ? (
+             <div className="py-12 text-center text-slate-500 text-xs font-black uppercase tracking-wider">
+               🎉 Hospital Queue Nominal. No active patient or staff birthdays today.
+             </div>
+           ) : (
+             <div className="space-y-3.5">
+               {todayBirthdays.map(person => {
+                  const alreadyWished = sentWishes.some(
+                    w => w.recipientName === person.name && 
+                    w.dateSent === new Date().toISOString().split('T')[0]
+                  );
+                  return (
+                    <div 
+                      key={person.id} 
+                      className={cn(
+                        "p-4 rounded-xl border flex items-center justify-between flex-wrap gap-4 transition-all duration-300",
+                        alreadyWished 
+                          ? "bg-emerald-500/[0.02] border-emerald-500/10 opacity-75" 
+                          : "bg-slate-950/60 border-white/5 hover:border-purple-500/20"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-lg bg-slate-900 border border-white/5 text-2xl flex items-center justify-center">
+                          {person.avatar}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xs font-bold text-slate-100">{person.name}</h3>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded text-[8px] font-black uppercase border",
+                              person.category === 'Doctor' ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" :
+                              person.category === 'Admin' ? "bg-rose-500/10 border-rose-500/25 text-rose-400" :
+                              person.category === 'Reception' ? "bg-cyan-500/10 border-cyan-500/25 text-cyan-400" :
+                              person.category === 'Security' ? "bg-amber-500/10 border-amber-500/25 text-amber-400" :
+                              "bg-purple-500/10 border-purple-500/25 text-purple-400"
+                            )}>
+                              {person.category}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-white/40 font-black tracking-widest uppercase mt-0.5">{person.role}</p>
+                          <p className="text-[9px] text-white/30 font-semibold tracking-wider font-mono mt-0.5">Age: {person.age} Yrs • Born: {person.birthdayDate}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        {alreadyWished ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black text-emerald-400 uppercase tracking-widest font-mono">
+                            ✓ Wish Dispatched
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedCelebrant(person);
+                              setWishMessage(`Happy Birthday ${person.name}! 🎉 Wishing you supreme health, success, and joy! Happy returns from the clinical team at AV Care! 🏥💝🎂`);
+                              setWishChannel('WhatsApp');
+                            }}
+                            className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-400 hover:to-cyan-400 border border-purple-500/20 hover:border-purple-500/40 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg shadow-purple-950/25 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Send size={10} /> Customize Greeting
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+               })}
+             </div>
+           )}
+         </div>
+
+         {/* Right Column: Calculations & Data Points overview */}
+         <div className="p-6 rounded-3xl bg-[#0f1225]/85 border border-purple-500/10 backdrop-blur-2xl flex flex-col justify-between gap-4">
+            <div>
+               <h3 className="text-xs font-black uppercase text-white tracking-[0.2em] border-b border-white/5 pb-2">Celebrations KPI Ledger</h3>
+               <div className="grid grid-cols-2 gap-3 mt-3 w-full">
+                  <div className="p-4 rounded-xl bg-slate-950/80 border border-white/5">
+                    <p className="text-2xl font-black text-white font-mono leading-none">{todayBirthdays.length}</p>
+                    <span className="text-[9px] font-black uppercase text-white/40 tracking-wider block mt-1.5">Today (Count)</span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-950/80 border border-white/5">
+                    <p className="text-2xl font-black text-white font-mono leading-none">{upcomingBirthdays.length}</p>
+                    <span className="text-[9px] font-black uppercase text-white/40 tracking-wider block mt-1.5">Upcoming Year</span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-950/80 border border-white/5">
+                    <p className="text-2xl font-black text-white font-mono leading-none">{sentWishes.length}</p>
+                    <span className="text-[9px] font-black uppercase text-white/40 tracking-wider block mt-1.5">Dispatched Wishes</span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-950/80 border border-fuchsia-500/10 bg-fuchsia-500/[0.01]">
+                    <p className="text-2xl font-black text-fuchsia-400 font-mono leading-none">{notificationCounter}</p>
+                    <span className="text-[9px] font-black uppercase text-fuchsia-400/60 tracking-wider block mt-1.5">Unsent Queue Alert</span>
+                  </div>
+               </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 space-y-2">
+              <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Active Broadcasting Node</h4>
+              <p className="text-[9px] text-white/30 leading-relaxed uppercase">
+                Secured wishing gateways enable automatic delivery across SMS cellular bands, secure SMTP mail relays, WhatsApp web networks and the smart clinical dashboard.
+              </p>
+            </div>
+         </div>
       </div>
+
+      {/* QUICK DISPATCH GREETING MODAL */}
+      <AnimatePresence>
+        {selectedCelebrant && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedCelebrant(null)}
+              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm" 
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl p-6 flex flex-col"
+            >
+              {wishSuccess ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="text-6xl animate-bounce">🎁</div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Wish Dispatched Successfully</h3>
+                  <p className="text-xs text-emerald-400 font-mono">STATUS: DELIVERED VIA {wishChannel.toUpperCase()}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4">
+                    <div className="flex items-center gap-2">
+                       <span className="text-2xl">{selectedCelebrant.avatar}</span>
+                       <div>
+                         <h3 className="text-xs font-bold text-white uppercase tracking-wide">Customize Birthday Wish</h3>
+                         <p className="text-[9px] text-white/45 uppercase tracking-widest font-black">For {selectedCelebrant.name} ({selectedCelebrant.category})</p>
+                       </div>
+                    </div>
+                    <button onClick={() => setSelectedCelebrant(null)} className="p-1 text-slate-400 hover:text-white bg-white/5 rounded-full">
+                       <X size={14} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Channel Selector */}
+                    <div className="space-y-1.5">
+                       <label className="text-[9px] font-black text-white/40 uppercase tracking-widest block font-mono">Communication Channel</label>
+                       <div className="grid grid-cols-4 gap-2">
+                          {([
+                            { id: 'WhatsApp', icon: '🟢', label: 'WhatsApp' },
+                            { id: 'SMS', icon: '💬', label: 'SMS' },
+                            { id: 'Email', icon: '📧', label: 'Email' },
+                            { id: 'Dashboard', icon: '🖥️', label: 'Dashboard' }
+                          ] as const).map(ch => (
+                            <button
+                              key={ch.id}
+                              onClick={() => setWishChannel(ch.id)}
+                              className={cn(
+                                "py-2.5 rounded-lg border text-[9px] font-black uppercase tracking-widest flex flex-col items-center justify-center gap-1 transition-all",
+                                wishChannel === ch.id 
+                                  ? "bg-purple-500/20 border-purple-500/55 text-purple-300" 
+                                  : "bg-slate-950 border-white/5 text-slate-400 hover:text-white"
+                              )}
+                            >
+                              <span>{ch.icon}</span>
+                              <span>{ch.label}</span>
+                            </button>
+                          ))}
+                       </div>
+                    </div>
+
+                    {/* Dashboard Selector */}
+                    {wishChannel === 'Dashboard' && (
+                      <div className="space-y-1.5 font-mono">
+                         <label className="text-[9px] font-black text-white/40 uppercase tracking-widest block font-mono">Mount to Wishing Dashboard Board</label>
+                         <select
+                           value={selectedWishDashboard}
+                           onChange={(e) => setSelectedWishDashboard(e.target.value)}
+                           className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white uppercase focus:outline-none focus:border-purple-500 font-mono"
+                         >
+                           {wishingDashboards.map(db => (
+                             <option key={db.id} value={db.name}>{db.name} ({db.location})</option>
+                           ))}
+                         </select>
+                      </div>
+                    )}
+
+                    {/* Sender Name Input */}
+                    <div className="space-y-1.5">
+                       <label className="text-[9px] font-black text-white/40 uppercase tracking-widest block font-mono">Signature Sender Name</label>
+                       <input 
+                         type="text"
+                         value={wishSenderName}
+                         onChange={(e) => setWishSenderName(e.target.value)}
+                         placeholder="Enter signature sender..."
+                         className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                       />
+                    </div>
+
+                    {/* Custom wishes template words */}
+                    <div className="space-y-1.5">
+                       <label className="text-[9px] font-black text-white/40 uppercase tracking-widest block font-mono">Message Text</label>
+                       <textarea
+                         value={wishMessage}
+                         onChange={(e) => setWishMessage(e.target.value)}
+                         rows={2}
+                         className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-purple-500"
+                       />
+                    </div>
+
+                    {/* Send dispatch clicker */}
+                    <button 
+                      onClick={handleDispatchQuickWish}
+                      className="w-full py-3 bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-400 hover:to-cyan-400 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-purple-950/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Send size={12} /> Send Celebration Greeting
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. REAL KPI STRIP (If data exists) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+        {[
+          { title: 'Total Patients', value: patients.length, icon: Users, color: '#3B82F6' },
+          { title: 'Active Admits', value: patients.filter(p => p.status === 'admitted').length, icon: Activity, color: '#A855F7' },
+          { title: 'Paid Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: CreditCard, color: '#10B981' },
+          { title: 'Invoices', value: invoices.length, icon: Calendar, color: '#22D3EE' },
+        ].map((kpi, i) => (
+          <motion.div
+            key={kpi.title}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="p-6 rounded-2xl bg-[#0f1225] shadow-xl border border-white/5 relative overflow-hidden flex-shrink-0"
+          >
+            <div className="flex flex-col gap-3 relative z-10 w-full h-full justify-between">
+              <div className="p-2.5 rounded-xl bg-white/5 w-fit border border-white/5 flex-shrink-0 text-slate-400">
+                 <kpi.icon size={18} />
+              </div>
+              <div className="mt-1 flex-1 min-w-0">
+                <span className="text-2xl font-bold text-white tracking-tight w-full truncate block">{kpi.value}</span>
+                <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 truncate mt-1 w-full">{kpi.title}</p>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* MAIN CONTENT AREA */}
+      <div className="pt-8 border-t border-white/5">
+         {patients.length === 0 && invoices.length === 0 && broadcasts.length === 0 ? (
+            <EmptyState title="Dashboard is empty" description="Start adding patients, scheduling appointments, or generating invoices to see analytics here." icon={Inbox} />
+         ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+               {/* Show empty states for modules that aren't populated yet */}
+               <div className="p-6 rounded-2xl bg-[#0f1225] border border-white/5 flex flex-col min-h-[300px]">
+                 <h3 className="text-sm font-bold text-white mb-6">Recent Analytics</h3>
+                 <div className="flex-1 flex items-center justify-center">
+                    <EmptyState title="No analytics available" description="Not enough data points collected over time to generate charts." icon={Activity} />
+                 </div>
+               </div>
+               <div className="p-6 rounded-2xl bg-[#0f1225] border border-white/5 flex flex-col min-h-[300px]">
+                 <h3 className="text-sm font-bold text-white mb-6">Recent Activity</h3>
+                 <div className="flex-1 flex items-center justify-center">
+                    <EmptyState title="No active logs" description="System is nominal. No major events tracked in the last 24 hours." icon={Inbox} />
+                 </div>
+               </div>
+            </div>
+         )}
+      </div>
+
     </div>
   );
 };

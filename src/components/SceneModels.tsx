@@ -1238,6 +1238,7 @@ export const SceneModels: React.FC<SceneProps> = ({ roleId, color }) => {
     switch (roleId) {
       case 'admin': return <NeuralBrain color={color} />;
       case 'doctor': return <NeuralHeart color={color} />;
+      case 'receptionist':
       case 'reception': return <DataNetwork />;
       case 'security': return <SecurityLock />;
       case 'ambulance': return <AmbulanceResponse color={color} />;
@@ -1245,7 +1246,7 @@ export const SceneModels: React.FC<SceneProps> = ({ roleId, color }) => {
     }
   };
 
-  const isSpecial = roleId === 'doctor' || roleId === 'reception' || roleId === 'security' || roleId === 'ambulance';
+  const isSpecial = roleId === 'doctor' || roleId === 'receptionist' || roleId === 'reception' || roleId === 'security' || roleId === 'ambulance';
 
   return (
     <div className="absolute inset-0 z-0">
@@ -1255,8 +1256,8 @@ export const SceneModels: React.FC<SceneProps> = ({ roleId, color }) => {
         gl={{ antialias: true, alpha: true, stencil: false, depth: true }}
       >
         <PerspectiveCamera makeDefault position={[0, 0, 12]} fov={30} />
-        <color attach="background" args={[isSpecial ? (roleId === 'security' || roleId === 'reception' || roleId === 'ambulance' ? "#0B0F1A" : "#020617") : "#050508"]} />
-        <fog attach="fog" args={[isSpecial ? (roleId === 'security' || roleId === 'reception' || roleId === 'ambulance' ? "#0B0F1A" : "#020617") : "#050508", 5, 25]} />
+        <color attach="background" args={[isSpecial ? (roleId === 'security' || roleId === 'receptionist' || roleId === 'reception' || roleId === 'ambulance' ? "#0B0F1A" : "#020617") : "#050508"]} />
+        <fog attach="fog" args={[isSpecial ? (roleId === 'security' || roleId === 'receptionist' || roleId === 'reception' || roleId === 'ambulance' ? "#0B0F1A" : "#020617") : "#050508", 5, 25]} />
         
         {/* Medical/Security Grid Overlay */}
         {isSpecial && (
@@ -1264,7 +1265,7 @@ export const SceneModels: React.FC<SceneProps> = ({ roleId, color }) => {
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -5, 0]}>
               <planeGeometry args={[100, 100, 40, 40]} />
               <meshStandardMaterial 
-                color={roleId === 'security' ? "#4F46E5" : (roleId === 'reception' || roleId === 'ambulance' ? "#00FFC6" : "#B11226")} 
+                color={roleId === 'security' ? "#4F46E5" : (roleId === 'receptionist' || roleId === 'reception' || roleId === 'ambulance' ? "#00FFC6" : "#B11226")} 
                 wireframe 
                 transparent 
                 opacity={0.03} 
@@ -1277,12 +1278,12 @@ export const SceneModels: React.FC<SceneProps> = ({ roleId, color }) => {
           <ambientLight intensity={0.03} />
           <pointLight 
             position={[10, 10, 10]} 
-            color={roleId === 'security' || roleId === 'ambulance' ? "#00FFC6" : (roleId === 'reception' ? "#00FFC6" : (roleId === 'doctor' ? "#B11226" : "#6C2BD9"))} 
+            color={roleId === 'security' || roleId === 'ambulance' ? "#00FFC6" : (roleId === 'receptionist' || roleId === 'reception' ? "#00FFC6" : (roleId === 'doctor' ? "#B11226" : "#6C2BD9"))} 
             intensity={6} 
           />
           <pointLight 
             position={[-10, -5, -10]} 
-            color={roleId === 'security' || roleId === 'ambulance' ? "#4F46E5" : (roleId === 'reception' ? "#4F46E5" : (roleId === 'doctor' ? "#991b1b" : "#4B1D95"))} 
+            color={roleId === 'security' || roleId === 'ambulance' ? "#4F46E5" : (roleId === 'receptionist' || roleId === 'reception' ? "#4F46E5" : (roleId === 'doctor' ? "#991b1b" : "#4B1D95"))} 
             intensity={4} 
           />
           <spotLight 
@@ -1291,7 +1292,7 @@ export const SceneModels: React.FC<SceneProps> = ({ roleId, color }) => {
             penumbra={1} 
             intensity={isSpecial ? 4 : 2} 
             castShadow 
-            color={roleId === 'security' || roleId === 'ambulance' ? "#00FFC6" : (roleId === 'reception' ? "#00FFC6" : (roleId === 'doctor' ? "#B11226" : "#A78BFA"))} 
+            color={roleId === 'security' || roleId === 'ambulance' ? "#00FFC6" : (roleId === 'receptionist' || roleId === 'reception' ? "#00FFC6" : (roleId === 'doctor' ? "#B11226" : "#A78BFA"))} 
           />
           
           <group position={isSpecial ? [0, 0, 0] : [-2.4, 0, 0]} scale={isSpecial ? (roleId === 'security' || roleId === 'ambulance' ? 1.5 : 2.5) : 1.8}> 

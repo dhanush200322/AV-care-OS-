@@ -11,13 +11,17 @@ import {
   Bell, 
   Search,
   Activity,
-  ArrowRight
+  ArrowRight,
+  Radio
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export const AmbulanceDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-  const { notifications } = useStore();
+  const { notifications, broadcasts, sentWishes } = useStore();
   const [activeTab, setActiveTab] = useState('overview');
+
+  const activeBroadcasts = broadcasts?.filter(b => b.audience === 'all' || b.audience === 'ambulance') || [];
+  const incomingGreetings = sentWishes?.filter(w => w.wishType === 'Dashboard' && w.dashboardSource === 'Ambulance Dashboard') || [];
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden font-sans text-slate-100 placeholder:text-white/10">
@@ -85,6 +89,71 @@ export const AmbulanceDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
 
         {/* Content */}
         <div className="p-8 max-w-7xl w-full mx-auto space-y-8 text-white">
+
+          {/* Incoming Birthday Greetings Console */}
+          {incomingGreetings.length > 0 && (
+             <div className="space-y-3">
+               {incomingGreetings.map((g, idx) => (
+                  <motion.div
+                     key={idx}
+                     initial={{ opacity: 0, y: -10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     className="p-5 rounded-2xl bg-gradient-to-r from-purple-500/15 via-indigo-500/5 to-cyan-500/10 border border-purple-500/30 flex items-start gap-4 shadow-xl shadow-purple-950/10 relative overflow-hidden group animate-pulse"
+                  >
+                     <div className="absolute right-4 top-4 text-[8px] font-mono text-purple-300 truncate font-black">
+                        {g.timeSent || "LIVE"}
+                     </div>
+                     <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
+                        🎉
+                     </div>
+                     <div className="flex-1 min-w-0 pr-12 text-sm">
+                        <div className="flex items-center gap-2 mb-1.5">
+                           <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-purple-500/20 text-purple-300 border border-purple-500/20">
+                              Birthday Greeting Broadcast
+                           </span>
+                           <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">Sender: {g.senderName}</span>
+                        </div>
+                        <h4 className="text-xs font-black text-white uppercase tracking-wide mb-1 select-none">
+                           TO: <span className="text-purple-400 font-extrabold">{g.recipientName}</span> (Happy Birthday!)
+                        </h4>
+                        <p className="text-xs text-white/90 leading-relaxed italic font-semibold">"{g.content}"</p>
+                     </div>
+                  </motion.div>
+               ))}
+             </div>
+          )}
+
+          {/* Active Broadcast Alert Banner */}
+          {activeBroadcasts.length > 0 && (
+             <div className="space-y-3">
+                {activeBroadcasts.map((b) => (
+                   <motion.div
+                      key={b.id}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-purple-500/10 border border-orange-500/30 flex items-start gap-4 shadow-lg shadow-orange-950/20 relative overflow-hidden group"
+                   >
+                      <div className="absolute right-4 top-4 text-[8px] font-mono text-white/30 truncate">
+                         {new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-400 flex-shrink-0 animate-pulse">
+                         <Radio size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0 pr-12">
+                         <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-orange-500/20 text-orange-400 border border-orange-500/20">
+                               {b.audience === 'all' ? "global transmission" : "ems dispatch"}
+                            </span>
+                            <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">AV Care Core Broadcast</span>
+                         </div>
+                         <h4 className="text-xs font-black text-white uppercase tracking-wide mb-1">{b.title}</h4>
+                         <p className="text-xs text-white/80 font-semibold leading-relaxed">{b.message}</p>
+                      </div>
+                   </motion.div>
+                ))}
+             </div>
+          )}
+
            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {[
                  { label: 'Units Active', value: '08', icon: Ambulance, color: 'text-orange-400' },

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
+import { EmptyState } from './EmptyState';
 
 const labTests = [
   { name: "CBC", price: 300 },
@@ -33,6 +34,10 @@ export const LabReportsModule: React.FC = () => {
     addNotification 
   } = useStore();
   const [search, setSearch] = useState('');
+
+  if (labReports.length === 0) {
+    return <EmptyState title="No Lab Reports" description="Laboratory queue is empty. Pending diagnostic tests will appear here." icon={FlaskConical} />;
+  }
 
   const getTestPrice = (testName: string) => {
     const test = labTests.find(t => testName.includes(t.name));

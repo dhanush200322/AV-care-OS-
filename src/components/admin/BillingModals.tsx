@@ -153,11 +153,11 @@ export const GenerateInvoiceModal = ({ onClose }: { onClose: () => void }) => {
                   onChange={e => setService(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 transition-all font-bold appearance-none pr-10"
                 >
-                  <option value="General Consultation">General Consultation</option>
-                  <option value="Pathology Lab">Pathology Lab</option>
-                  <option value="Lab Test">Lab Test</option>
-                  <option value="Radiology (X-Ray/Scan)">Radiology (X-Ray/Scan)</option>
-                  <option value="Emergency Care">Emergency Care</option>
+                  <option className="bg-slate-900 text-white" value="General Consultation">General Consultation</option>
+                  <option className="bg-slate-900 text-white" value="Pathology Lab">Pathology Lab</option>
+                  <option className="bg-slate-900 text-white" value="Lab Test">Lab Test</option>
+                  <option className="bg-slate-900 text-white" value="Radiology (X-Ray/Scan)">Radiology (X-Ray/Scan)</option>
+                  <option className="bg-slate-900 text-white" value="Emergency Care">Emergency Care</option>
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
                   <X size={12} className="rotate-45" />

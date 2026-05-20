@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Background } from './components/Background';
 import { Carousel } from './components/Carousel';
@@ -8,74 +8,43 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Role, ROLES } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Power } from 'lucide-react';
-import { supabase } from './supabaseClient';
-import { Session } from '@supabase/supabase-js';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { DoctorDashboard } from './components/doctor/DoctorDashboard';
 import { ReceptionDashboard } from './components/reception/ReceptionDashboard';
 import { SecurityDashboard } from './components/security/SecurityDashboard';
 import { AmbulanceDashboard } from './components/ambulance/AmbulanceDashboard';
-import { useStore } from './store/useStore';
+import Unauthorized from './pages/Unauthorized';
 
 function AppContent() {
-  const [selectedRole, setSelectedRole] = useState<Role>(ROLES[1]); // Default to Doctor
-  const [hoveredRole, setHoveredRole] = useState<Role | null>(null);
-  const [rememberRole, setRememberRole] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const { broadcasts, notifications } = useStore();
+  const [selectedRole, setSelectedRole] = React.useState<Role>(ROLES[1]);
+  const [hoveredRole, setHoveredRole] = React.useState<Role | null>(null);
+  const [rememberRole, setRememberRole] = React.useState(false);
+  const { profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const userRole = userProfile?.role || (session?.user?.email === 'ro224313@gmail.com' ? 'admin' : undefined);
-
-  const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (!error && data) {
-      setUserProfile(data);
+  React.useEffect(() => {
+    if (!loading && profile) {
+       const currentPath = window.location.pathname;
+       if (currentPath === '/' || currentPath === '/auth') {
+          // Special cases for URL mapped roles
+          let targetPath = `/${profile.role}/dashboard`;
+          if (profile.role === 'patient') {
+             targetPath = '/user/dashboard';
+          } else if (profile.role === 'receptionist') {
+             targetPath = '/reception/dashboard';
+          }
+          
+          navigate(targetPath, { replace: true });
+       }
     }
-  };
-
-  useEffect(() => {
-    const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      
-      if (session) {
-        await fetchProfile(session.user.id);
-      }
-      setSessionLoading(false);
-    };
-    
-    initSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session) {
-        await fetchProfile(session.user.id);
-      } else {
-        setUserProfile(null);
-        navigate('/');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-  };
+  }, [profile, loading, navigate]);
 
   const backgroundRole = hoveredRole || selectedRole;
 
-  if (sessionLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen w-full bg-[#050816] flex items-center justify-center">
         <motion.div
            animate={{ rotate: 360 }}
            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
@@ -86,7 +55,7 @@ function AppContent() {
   }
 
   return (
-    <div id="app-root" className="relative min-h-screen w-full flex flex-col items-center justify-between overflow-hidden text-slate-100 font-sans bg-slate-950">
+    <div id="app-root" className="relative min-h-screen w-full flex flex-col items-center justify-between overflow-hidden text-slate-100 font-sans bg-[#050816] selection:bg-cyan-500/30">
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={
@@ -111,13 +80,6 @@ function AppContent() {
                 <div onClick={() => navigate('/auth')}>
                   <EnterButton selectedRole={selectedRole} />
                 </div>
-                <div className="flex flex-col items-center gap-4 border-t border-white/5 pt-8 w-64 opacity-40">
-                  <div className="flex items-center gap-2 text-[10px] font-mono tracking-widest text-slate-400">
-                    <Power size={12} className="text-cyan-400" />
-                    <span>TERMINAL STATUS: READY</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500">© 2026 AV CARE TECH SYSTEMS</div>
-                </div>
               </footer>
             </div>
           } />
@@ -129,37 +91,40 @@ function AppContent() {
             </div>
           } />
 
+          <Route path="/unauthorized" element={<Unauthorized />} />
+
+          {/* Role Protected Routes */}
           <Route path="/admin/dashboard" element={
-            <ProtectedRoute userRole={userRole} allowedRoles={['admin']} isLoading={sessionLoading}>
-              <AdminDashboard onLogout={handleSignOut} />
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard onLogout={signOut} />
             </ProtectedRoute>
           } />
 
           <Route path="/doctor/dashboard" element={
-            <ProtectedRoute userRole={userRole} allowedRoles={['doctor']} isLoading={sessionLoading}>
-              <DoctorDashboard onLogout={handleSignOut} />
+            <ProtectedRoute allowedRoles={['doctor']}>
+              <DoctorDashboard onLogout={signOut} />
             </ProtectedRoute>
           } />
 
           <Route path="/reception/dashboard" element={
-            <ProtectedRoute userRole={userRole} allowedRoles={['reception']} isLoading={sessionLoading}>
-              <ReceptionDashboard onLogout={handleSignOut} />
+            <ProtectedRoute allowedRoles={['receptionist']}>
+               <ReceptionDashboard onLogout={signOut} />
             </ProtectedRoute>
           } />
 
           <Route path="/security/dashboard" element={
-            <ProtectedRoute userRole={userRole} allowedRoles={['security']} isLoading={sessionLoading}>
-              <SecurityDashboard onLogout={handleSignOut} />
+            <ProtectedRoute allowedRoles={['security']}>
+               <SecurityDashboard onLogout={signOut} />
             </ProtectedRoute>
           } />
 
           <Route path="/ambulance/dashboard" element={
-            <ProtectedRoute userRole={userRole} allowedRoles={['ambulance']} isLoading={sessionLoading}>
-              <AmbulanceDashboard onLogout={handleSignOut} />
+            <ProtectedRoute allowedRoles={['ambulance']}>
+               <AmbulanceDashboard onLogout={signOut} />
             </ProtectedRoute>
           } />
 
-          {/* Catch all/fallback */}
+          {/* Default fallbacks */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
@@ -169,9 +134,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
   );
 }
 

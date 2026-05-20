@@ -113,7 +113,7 @@ const RoleCard: React.FC<RoleCardProps> = ({ role, isActive, position, onHover }
               {role.title}
             </motion.h3>
             <p className="text-[10px] uppercase font-bold tracking-[0.2em]" style={{ color: `${role.color}cc` }}>
-              {role.id === 'doctor' ? 'Clinical Specialist' : role.id === 'admin' ? 'System Architecture' : role.id === 'reception' ? 'Patient Management' : role.id === 'security' ? 'Facility Protocol' : 'Emergency Logistics'}
+              {role.id === 'doctor' ? 'Clinical Specialist' : role.id === 'admin' ? 'System Architecture' : (role.id === 'receptionist' || role.id === 'reception') ? 'Patient Management' : role.id === 'security' ? 'Facility Protocol' : 'Emergency Logistics'}
             </p>
           </div>
         </motion.div>

@@ -1,6 +1,15 @@
 import { Shield, Stethoscope, UserCog, Building2, Ambulance } from 'lucide-react';
 
-export type RoleId = 'admin' | 'doctor' | 'reception' | 'security' | 'ambulance';
+export type RoleId = 'admin' | 'doctor' | 'nurse' | 'receptionist' | 'lab_staff' | 'patient' | 'accountant' | 'pharmacist' | 'reception' | 'security' | 'ambulance';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: RoleId;
+  avatar_url?: string;
+  created_at?: string;
+}
 
 export type ViewMode = 'selection' | 'auth' | 'dashboard';
 
@@ -37,7 +46,7 @@ export const ROLES: Role[] = [
     sceneSub: 'Life Support Synchronized',
   },
   {
-    id: 'reception',
+    id: 'receptionist',
     title: 'Reception',
     description: 'Patient intake and scheduling optimization.',
     color: '#14b8a6', // Teal
