@@ -357,4 +357,81 @@ html.light {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* AV CareOS Doctor Dashboard — Green Command Center */
+.doctor-dashboard {
+  --doctor-bg: #071B11;
+  --doctor-surface: #0D2818;
+  --doctor-primary: #00D68F;
+  --doctor-neon: #00FFA3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doctor-dashboard *,
+  .doctor-dashboard *::before,
+  .doctor-dashboard *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* AV CareOS Reception Dashboard — Teal Command Center */
+.reception-dashboard {
+  --reception-bg: #071A1D;
+  --reception-surface: #0D262B;
+  --reception-primary: #00C2A8;
+  --reception-neon: #00FFD5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reception-dashboard *,
+  .reception-dashboard *::before,
+  .reception-dashboard *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* AV CareOS Security Dashboard — Tactical Command Center */
+.security-dashboard {
+  --sec-bg: #050D14;
+  --sec-surface: #0A1824;
+  --sec-cyan: #00C2E0;
+  --sec-neon: #00E5FF;
+  --sec-alert: #FF4444;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .security-dashboard *,
+  .security-dashboard *::before,
+  .security-dashboard *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.ambulance-dashboard {
+  --amb-bg: #140B05;
+  --amb-surface: #22140B;
+  --amb-orange: #FF7A00;
+  --amb-neon: #FFA63D;
+  --amb-critical: #FF4444;
+  --amb-cyan: #00C2E0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambulance-dashboard *,
+  .ambulance-dashboard *::before,
+  .ambulance-dashboard *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 

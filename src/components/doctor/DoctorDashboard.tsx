@@ -1,259 +1,248 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { useStore } from '../../store/useStore';
-import { 
-  Stethoscope, 
-  Users, 
-  Calendar, 
-  Activity, 
-  Clock, 
-  LogOut, 
-  Bell, 
-  Search,
-  CheckCircle2,
-  AlertCircle,
-  Radio
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Radio, CheckCircle2, AlertCircle, Info, X, LayoutDashboard, Calendar, Users, Brain, Siren } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useStore } from '../../store/useStore';
+import { useDoctorStore } from '../../store/doctorStore';
+import { DoctorSidebar } from './DoctorSidebar';
+import { DoctorTopNavbar } from './DoctorTopNavbar';
+import { DoctorCommandPalette } from './DoctorCommandPalette';
+import { DoctorAIAssistant } from './DoctorAIAssistant';
+import { DoctorDashboardOverview } from './DoctorDashboardOverview';
+import { DoctorAppointmentsModule } from './modules/DoctorAppointmentsModule';
+import { PatientQueueModule } from './modules/PatientQueueModule';
+import { ConsultationsModule } from './modules/ConsultationsModule';
+import { MedicalRecordsModule } from './modules/MedicalRecordsModule';
+import { AIDiagnosisModule } from './modules/AIDiagnosisModule';
+import { PrescriptionsModule } from './modules/PrescriptionsModule';
+import { DoctorLabReportsModule } from './modules/DoctorLabReportsModule';
+import { TelemedicineModule } from './modules/TelemedicineModule';
+import { EmergencyModule } from './modules/EmergencyModule';
+import { DoctorMessagesModule } from './modules/DoctorMessagesModule';
+import { DoctorAnalyticsModule } from './modules/DoctorAnalyticsModule';
+import { DoctorSettingsModule } from './modules/DoctorSettingsModule';
+
+type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
+
+const MOBILE_NAV = [
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Home' },
+  { id: 'appointments', icon: Calendar, label: 'Appts' },
+  { id: 'queue', icon: Users, label: 'Queue' },
+  { id: 'ai-diagnosis', icon: Brain, label: 'AI' },
+  { id: 'emergency', icon: Siren, label: 'ER' },
+];
 
 export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-  const { patients, labReports, notifications, broadcasts, sentWishes } = useStore();
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  const handleLogout = () => {
-    onLogout();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const { broadcasts, sentWishes, isEmergencyMode } = useStore();
+  const { simulateRealtimeTick } = useDoctorStore();
+
+  const activeBroadcasts = broadcasts?.filter((b) => b.audience === 'all' || b.audience === 'doctor') || [];
+  const incomingGreetings =
+    sentWishes?.filter((w) => w.wishType === 'Dashboard' && w.dashboardSource === 'Doctor Dashboard') || [];
+
+  const addToast = useCallback((type: Toast['type'], message: string) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+      if (e.key === 'Escape') setIsSearchOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => simulateRealtimeTick(), 30000);
+    return () => clearInterval(interval);
+  }, [simulateRealtimeTick]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener('scroll', onScroll, true);
+    return () => window.removeEventListener('scroll', onScroll, true);
+  }, []);
+
+  const renderContent = () => {
+    const toastProps = { onToast: addToast };
+    switch (activeTab) {
+      case 'dashboard':
+        return <DoctorDashboardOverview />;
+      case 'appointments':
+        return <DoctorAppointmentsModule {...toastProps} />;
+      case 'queue':
+        return <PatientQueueModule {...toastProps} />;
+      case 'consultations':
+        return <ConsultationsModule {...toastProps} />;
+      case 'records':
+        return <MedicalRecordsModule {...toastProps} />;
+      case 'ai-diagnosis':
+        return <AIDiagnosisModule {...toastProps} />;
+      case 'prescriptions':
+        return <PrescriptionsModule {...toastProps} />;
+      case 'lab-reports':
+        return <DoctorLabReportsModule {...toastProps} />;
+      case 'telemedicine':
+        return <TelemedicineModule {...toastProps} />;
+      case 'emergency':
+        return <EmergencyModule {...toastProps} />;
+      case 'messages':
+        return <DoctorMessagesModule {...toastProps} />;
+      case 'analytics':
+        return <DoctorAnalyticsModule />;
+      case 'settings':
+        return <DoctorSettingsModule {...toastProps} />;
+      default:
+        return <DoctorDashboardOverview />;
+    }
   };
-  
-  const activeBroadcasts = broadcasts?.filter(b => b.audience === 'all' || b.audience === 'doctor') || [];
-  const incomingGreetings = sentWishes?.filter(w => w.wishType === 'Dashboard' && w.dashboardSource === 'Doctor Dashboard') || [];
 
   return (
-    <div className="flex h-screen w-full bg-slate-950 overflow-hidden font-sans text-slate-100">
-      {/* Mini Sidebar */}
-      <aside className="w-20 border-r border-white/5 bg-white/[0.02] flex flex-col items-center py-8 gap-8">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-          <Stethoscope className="text-emerald-400" size={24} />
-        </div>
-        <nav className="flex-1 flex flex-col gap-4">
-          {[
-            { id: 'overview', icon: Activity },
-            { id: 'patients', icon: Users },
-            { id: 'schedule', icon: Calendar },
-          ].map((item) => (
+    <div
+      className="flex h-screen w-full overflow-hidden font-sans text-white doctor-dashboard"
+      style={{ backgroundColor: '#071B11' }}
+    >
+      <div className="hidden lg:block">
+        <DoctorSidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onLogout={onLogout}
+          collapsed={sidebarCollapsed}
+          setCollapsed={setSidebarCollapsed}
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        <DoctorTopNavbar
+          onSearchClick={() => setIsSearchOpen(true)}
+          onAIToggle={() => setAiOpen((o) => !o)}
+          scrolled={scrolled}
+        />
+
+        <main className="flex-1 overflow-y-auto no-scrollbar px-4 pb-24 lg:pb-8">
+          <AnimatePresence>
+            {isEmergencyMode && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="mb-4 p-4 rounded-2xl bg-[#FF4444]/15 border border-[#FF4444]/40 flex items-center gap-3"
+              >
+                <Siren className="text-[#FF4444] animate-pulse" size={20} />
+                <p className="text-sm font-bold text-[#FF4444] uppercase tracking-wider">Hospital Emergency Mode Active</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {incomingGreetings.length > 0 && (
+            <div className="space-y-3 mb-6">
+              {incomingGreetings.map((g, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30"
+                >
+                  <p className="text-xs text-purple-300 font-bold">Birthday · {g.senderName}</p>
+                  <p className="text-sm text-white mt-1">{g.content}</p>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {activeBroadcasts.length > 0 && (
+            <div className="space-y-3 mb-6">
+              {activeBroadcasts.map((b) => (
+                <motion.div
+                  key={b.id}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-2xl bg-[#00D68F]/10 border border-[#00D68F]/30 flex gap-4"
+                >
+                  <Radio className="text-[#00FFA3] shrink-0 animate-pulse" size={20} />
+                  <div>
+                    <h4 className="text-sm font-bold text-white">{b.title}</h4>
+                    <p className="text-xs text-[#8AA39B] mt-1">{b.message}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="max-w-[1600px] mx-auto py-4"
+          >
+            {renderContent()}
+          </motion.div>
+        </main>
+
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex justify-around p-2 bg-[#0D2818]/95 backdrop-blur-xl border-t border-[#00D68F]/20 safe-area-pb">
+          {MOBILE_NAV.map((item) => (
             <button
               key={item.id}
+              type="button"
               onClick={() => setActiveTab(item.id)}
               className={cn(
-                "p-3 rounded-xl transition-all group relative",
-                activeTab === item.id ? "bg-emerald-500 text-white" : "text-white/20 hover:bg-white/5 hover:text-white"
+                'flex flex-col items-center gap-1 p-2 rounded-xl min-w-[56px] min-h-[48px]',
+                activeTab === item.id ? 'text-[#00FFA3]' : 'text-[#8AA39B]'
               )}
             >
               <item.icon size={20} />
-              {activeTab === item.id && (
-                <motion.div layoutId="active-nav" className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-emerald-500 rounded-r-full" />
-              )}
+              <span className="text-[9px] font-bold uppercase">{item.label}</span>
             </button>
           ))}
         </nav>
-        <button onClick={handleLogout} className="p-3 rounded-xl text-white/20 hover:bg-red-500/10 hover:text-red-500 transition-all">
-          <LogOut size={20} />
-        </button>
-      </aside>
+      </div>
 
-      <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar">
-        {/* Header */}
-        <header className="h-20 border-b border-white/5 px-8 flex items-center justify-between bg-white/[0.01]">
-          <div>
-            <h1 className="text-xl font-light tracking-tight text-white uppercase">
-              VITAL <span className="font-bold text-emerald-500">CORE</span>
-            </h1>
-            <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Clinical Command & Control</p>
-          </div>
+      <DoctorCommandPalette open={isSearchOpen} onClose={() => setIsSearchOpen(false)} onNavigate={setActiveTab} />
+      <DoctorAIAssistant forceOpen={aiOpen} onForceOpenChange={setAiOpen} />
 
-          <div className="flex items-center gap-6">
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-emerald-400 transition-colors" size={16} />
-              <input 
-                type="text" 
-                placeholder="SEARCH PATIENT ARCHIVES..." 
-                className="bg-white/5 border border-white/5 rounded-full py-2.5 pl-12 pr-6 text-[10px] w-64 focus:outline-none focus:border-emerald-500/30 transition-all font-bold tracking-widest" 
-              />
-            </div>
-            <button className="relative p-2 text-white/40 hover:text-white transition-colors">
-              <Bell size={20} />
-              {notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full border-2 border-slate-950" />
+      <div className="fixed top-24 right-6 z-[250] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 40 }}
+              className={cn(
+                'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-lg min-w-[280px]',
+                t.type === 'success' && 'bg-[#00D68F]/20 border-[#00FFA3]/40 text-[#00FFA3]',
+                t.type === 'error' && 'bg-[#FF4444]/20 border-[#FF4444]/40 text-[#FF4444]',
+                t.type === 'info' && 'bg-[#00C2E0]/20 border-[#00C2E0]/40 text-[#00C2E0]'
               )}
-            </button>
-            <div className="flex items-center gap-3 pl-6 border-l border-white/5">
-              <div className="text-right hidden md:block">
-                <p className="text-xs font-bold text-white uppercase tracking-tight">Dr. Satish K.</p>
-                <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Senior Cardiologist</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-[1px]">
-                 <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center text-emerald-400 font-black text-xs">SK</div>
-              </div>
-            </div>
-          </div>
-        </header>
+            >
+              {t.type === 'success' && <CheckCircle2 size={18} />}
+              {t.type === 'error' && <AlertCircle size={18} />}
+              {t.type === 'info' && <Info size={18} />}
+              <span className="text-sm font-medium flex-1">{t.message}</span>
+              <button type="button" onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))} className="opacity-60 hover:opacity-100">
+                <X size={14} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
-        {/* Content */}
-        <div className="p-8 max-w-7xl w-full mx-auto space-y-8">
-
-          {/* Incoming Birthday Greetings Console */}
-          {incomingGreetings.length > 0 && (
-             <div className="space-y-3">
-               {incomingGreetings.map((g, idx) => (
-                  <motion.div
-                     key={idx}
-                     initial={{ opacity: 0, y: -10 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     className="p-5 rounded-2xl bg-gradient-to-r from-purple-500/15 via-indigo-500/5 to-cyan-500/10 border border-purple-500/30 flex items-start gap-4 shadow-xl shadow-purple-950/10 relative overflow-hidden group animate-pulse"
-                  >
-                     <div className="absolute right-4 top-4 text-[8px] text-purple-300 truncate font-black uppercase tracking-wider animate-pulse">
-                        {g.timeSent || "LIVE"}
-                     </div>
-                     <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
-                        🎉
-                     </div>
-                     <div className="flex-1 min-w-0 pr-12 text-sm">
-                        <div className="flex items-center gap-2 mb-1.5">
-                           <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-purple-500/20 text-purple-300 border border-purple-500/20">
-                              Birthday Greeting Broadcast
-                           </span>
-                           <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">Sender: {g.senderName}</span>
-                        </div>
-                        <h4 className="text-xs font-black text-white uppercase tracking-wide mb-1 select-none">
-                           TO: <span className="text-purple-400 font-extrabold">{g.recipientName}</span> (Happy Birthday!)
-                        </h4>
-                        <p className="text-xs text-white/90 leading-relaxed italic font-semibold">"{g.content}"</p>
-                     </div>
-                  </motion.div>
-               ))}
-             </div>
-          )}
-          
-          {/* Active Broadcast Alert Banner */}
-          {activeBroadcasts.length > 0 && (
-             <div className="space-y-3">
-                {activeBroadcasts.map((b) => (
-                   <motion.div
-                      key={b.id}
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-purple-500/10 border border-emerald-500/30 flex items-start gap-4 shadow-lg shadow-emerald-950/20 relative overflow-hidden group"
-                   >
-                      <div className="absolute right-4 top-4 text-[8px] text-white/35 font-bold uppercase tracking-wider truncate">
-                         {new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0 animate-pulse">
-                         <Radio size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0 pr-12">
-                         <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">
-                               {b.audience === 'all' ? "global transmission" : "clinical dispatch"}
-                            </span>
-                            <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">AV Care Core Broadcast</span>
-                         </div>
-                         <h4 className="text-xs font-black text-white uppercase tracking-wide mb-1">{b.title}</h4>
-                         <p className="text-xs text-white/80 font-semibold leading-relaxed">{b.message}</p>
-                      </div>
-                   </motion.div>
-                ))}
-             </div>
-          )}
-
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 flex flex-col gap-4">
-                 <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Active Cases</p>
-                    <Activity className="text-emerald-500" size={16} />
-                 </div>
-                 <p className="text-3xl font-light text-white">42</p>
-                 <div className="flex items-center gap-2 text-[9px] font-black text-emerald-500">
-                    <CheckCircle2 size={12} />
-                    <span>8 TRANSFERRED TODAY</span>
-                 </div>
-              </div>
-              <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 flex flex-col gap-4">
-                 <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Pending Clearances</p>
-                    <Clock className="text-yellow-500" size={16} />
-                 </div>
-                 <p className="text-3xl font-light text-white">{labReports.filter(r => r.status === 'Pending').length}</p>
-                 <div className="flex items-center gap-2 text-[9px] font-black text-white/20">
-                    <AlertCircle size={12} />
-                    <span>3 URGENT REVIEWS</span>
-                 </div>
-              </div>
-              <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 flex flex-col gap-4">
-                 <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Scheduled Rounds</p>
-                    <Calendar className="text-emerald-500" size={16} />
-                 </div>
-                 <p className="text-3xl font-light text-white">12</p>
-                 <div className="flex items-center gap-2 text-[9px] font-black text-emerald-500">
-                    <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>NEXT ROUND IN 15M</span>
-                 </div>
-              </div>
-           </div>
-
-           {/* Patients List (Placeholder style) */}
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/10 flex flex-col gap-6">
-                 <h2 className="text-xs font-black text-white/20 uppercase tracking-[0.4em]">PRIORITY WARD REVIEWS</h2>
-                 <div className="space-y-4">
-                    {patients.slice(0, 4).map((p) => (
-                       <div key={p.id} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/5 transition-all">
-                          <div className="flex items-center gap-4">
-                             <div className={cn(
-                               "w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black",
-                               p.condition === 'Critical' ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-400"
-                             )}>
-                                {p.id.split('-')[1]}
-                             </div>
-                             <div>
-                                <p className="text-sm font-bold text-white uppercase tracking-tight">{p.name}</p>
-                                <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">{p.ward} • {p.condition}</p>
-                             </div>
-                          </div>
-                          <button className="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
-                             View Charts
-                          </button>
-                       </div>
-                    ))}
-                 </div>
-              </div>
-
-              <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/10 flex flex-col gap-6 text-white text-sm">
-                 <h2 className="text-xs font-black text-white/20 uppercase tracking-[0.4em]">LAB ANALYTICS FEED</h2>
-                 <div className="space-y-4">
-                    {labReports.map((r) => (
-                       <div key={r.id} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/5 transition-all">
-                          <div className="flex flex-col gap-1">
-                             <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">{r.id}</p>
-                             <p className="text-sm font-bold text-white uppercase tracking-tight">{r.test}</p>
-                             <p className="text-[9px] text-white/20 font-black uppercase tracking-widest">FOR: {r.patient}</p>
-                          </div>
-                          <div className={cn(
-                             "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em]",
-                             r.status === 'Completed' ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/20"
-                          )}>
-                             {r.status}
-                          </div>
-                       </div>
-                    ))}
-                 </div>
-              </div>
-           </div>
-        </div>
-      </main>
-
-      {/* Global Glow */}
-      <div className="fixed top-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-600/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="fixed bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed top-[-15%] right-[-10%] w-[45%] h-[45%] bg-[#00D68F]/8 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-[-15%] left-[-10%] w-[35%] h-[35%] bg-[#00C2E0]/5 rounded-full blur-[100px] pointer-events-none" />
     </div>
   );
 };

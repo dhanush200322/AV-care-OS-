@@ -1,0 +1,6 @@
+export const glassCard = 'rounded-2xl border border-[#FF7A00]/20 bg-[#22140B]/70 backdrop-blur-xl shadow-[0_8px_32px_rgba(255,122,0,0.1)]';
+export const glassPanel = 'rounded-3xl border border-white/10 bg-[#22140B]/50 backdrop-blur-2xl';
+export const btnPrimary = 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A00] to-[#FFA63D] text-[#140B05] font-bold text-xs uppercase tracking-widest shadow-lg shadow-[#FF7A00]/30 hover:scale-[1.02] active:scale-[0.98] transition-all';
+export const btnDanger = 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF4444] to-[#FF6B6B] text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-[#FF4444]/30 hover:scale-[1.02] transition-all';
+export const btnGhost = 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-[#B8A28F] hover:text-white hover:border-[#FF7A00]/40 hover:bg-[#FF7A00]/10 text-xs font-bold uppercase tracking-widest transition-all';
+export const inputClass = 'w-full bg-[#140B05]/90 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder:text-[#B8A28F]/50 focus:outline-none focus:border-[#FF7A00]/50 focus:ring-1 focus:ring-[#FF7A00]/30';
