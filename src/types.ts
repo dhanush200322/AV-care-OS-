@@ -9,6 +9,7 @@ export interface UserProfile {
   role: RoleId;
   avatar_url?: string;
   created_at?: string;
+  plan?: 'free' | 'pro';
 }
 
 export type ViewMode = 'selection' | 'auth' | 'dashboard';

@@ -15,6 +15,7 @@ import {
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
 import { EmptyState } from './EmptyState';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 const labTests = [
   { name: "CBC", price: 300 },
@@ -25,6 +26,7 @@ const labTests = [
 ];
 
 export const LabReportsModule: React.FC = () => {
+  const { t } = useTranslation();
   const { 
     labReports, 
     invoices,
@@ -138,19 +140,19 @@ export const LabReportsModule: React.FC = () => {
                 animate={{ opacity: 1 }}
                 className="border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors"
               >
-                <td className="py-5 px-4 font-mono text-[10px] text-white/60">{item.id}</td>
+                <td className="py-5 px-4 text-[10px] font-semibold tracking-wider text-white/50">{item.id}</td>
                 <td className="py-5 px-4">
-                   <div className="font-bold text-sm text-white">{item.patient}</div>
-                   <div className="text-[9px] text-white/20 uppercase tracking-widest font-black">{item.technician}</div>
+                   <div className="font-bold text-sm text-white">{t(item.patient)}</div>
+                   <div className="text-[9px] text-white/20 uppercase tracking-widest font-black">{t(item.technician)}</div>
                 </td>
-                <td className="py-5 px-4 font-bold text-white/80">{item.test}</td>
+                <td className="py-5 px-4 font-bold text-white/80">{t(item.test)}</td>
                 <td className="py-5 px-4">
                   <div className={cn(
                     "mx-auto w-fit px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5",
                     item.status === 'Completed' ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-500"
                   )}>
                     {item.status === 'Completed' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                    {item.status}
+                    {t(item.status)}
                   </div>
                 </td>
                 <td className="py-5 px-4">
@@ -168,7 +170,7 @@ export const LabReportsModule: React.FC = () => {
                          <span className="underline decoration-purple-500/50 group-hover:decoration-white">{item.invoiceId}</span>
                        </button>
                     ) : (
-                       <span>Not Billed</span>
+                       <span>{t('Not Billed')}</span>
                     )}
                   </div>
                 </td>
@@ -177,7 +179,7 @@ export const LabReportsModule: React.FC = () => {
                   <div className="flex justify-end gap-2 text-white">
                      {item.billed ? (
                         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-white/20 text-[9px] font-black uppercase tracking-widest cursor-not-allowed">
-                           Invoice Created
+                           {t('Invoice Created')}
                         </div>
                      ) : (
                         <button 
@@ -189,7 +191,7 @@ export const LabReportsModule: React.FC = () => {
                               : "bg-white/5 border border-white/5 text-white/20 opacity-50 cursor-not-allowed"
                           )}
                         >
-                           {item.status === 'Completed' ? 'Generate Bill' : 'Pending Result'}
+                           {item.status === 'Completed' ? t('Generate Bill') : t('Pending Result')}
                         </button>
                      )}
                      <button className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white transition-all">

@@ -2,200 +2,115 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { UserProfile, RoleId } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  signOut: (customRedirectPath?: string) => Promise<void>;
   isAdmin: boolean;
   hasRole: (roles: RoleId[]) => boolean;
+  updatePlan?: (newPlan: 'free' | 'pro') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+export const clearAllAuthCookiesAndStorage = async () => {
+  try {
+    localStorage.removeItem("mock_authed_user");
+    localStorage.removeItem("sb-bifxppsanaalorhvmjte-auth-token");
+    localStorage.setItem("mock_signed_out", "true");
+  } catch (e) {
+    console.warn("localStorage clearing failed:", e);
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (id: string, email: string, metadata: any) => {
-    try {
-      const fetchPromise = supabase
-        .from('users')
-        .select('*')
-        .eq('id', id)
-        .single();
-        
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('fetch timeout')), 1000)
-      );
-      
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-      if (error || !data) {
-        // Handle owner override or auto-creation
-        if (email === 'ro224313@gmail.com') {
-          const adminProfile: UserProfile = {
-            id,
-            email,
-            full_name: metadata?.full_name || 'System Admin',
-            role: 'admin'
-          };
-          setProfile(adminProfile);
-          return adminProfile;
-        }
-
-        const intendedRole = localStorage.getItem('intended_role') as RoleId;
-        if (intendedRole) {
-           const insertPromise = supabase
-            .from('users')
-            .insert([{
-              id,
-              email,
-              full_name: metadata?.full_name || 'New User',
-              role: intendedRole
-            }])
-            .select()
-            .single();
-           
-           const { data: newUser, error: createError } = await Promise.race([insertPromise, timeoutPromise]) as any;
-           
-           if (!createError && newUser) {
-             localStorage.removeItem('intended_role');
-             setProfile(newUser);
-             return newUser;
-           }
-
-           // MOCK FALLBACK for offline/paused Supabase
-           console.warn("Supabase insert failed or timed out. Using mock profile.");
-           const mockProfile: UserProfile = {
-             id,
-             email,
-             full_name: metadata?.full_name || 'Mock User',
-             role: intendedRole
-           };
-           setProfile(mockProfile);
-           return mockProfile;
-        }
-
-        // MOCK FALLBACK for missing intendedRole but failed fetch
-        console.warn("Supabase query failed or timed out. Using mock profile.");
-        const fallbackRole = localStorage.getItem('intended_role') as RoleId || 'admin';
-        const mockProfile: UserProfile = {
-          id,
-          email,
-          full_name: metadata?.full_name || 'Mock User',
-          role: fallbackRole
-        };
-        setProfile(mockProfile);
-        return mockProfile;
-      }
-
-      // Sync owner role
-      if (email === 'ro224313@gmail.com' && data.role !== 'admin') {
-         const updatePromise = supabase
-           .from('users')
-           .update({ role: 'admin' })
-           .eq('id', id)
-           .select()
-           .single();
-         const { data: updated } = await Promise.race([updatePromise, timeoutPromise]) as any;
-         if (updated) {
-           setProfile(updated);
-           return updated;
-         }
-      }
-
-      setProfile(data);
-      return data;
-    } catch (e) {
-      console.error("Auth profile fetch error:", e);
-      // Failsafe Mock Profile
-      const fallbackRole = localStorage.getItem('intended_role') as RoleId || 'admin';
-      const mockProfile: UserProfile = {
-        id,
-        email,
-        full_name: metadata?.full_name || 'Mock User',
-        role: fallbackRole
-      };
-      setProfile(mockProfile);
-      return mockProfile;
-    }
-  };
-
   useEffect(() => {
     const initSession = async () => {
       try {
-        let initialSession = null;
-        
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('fetch timeout')), 1000)
-        );
-        
-        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
-        
-        if (error) {
-          console.error("Supabase getSession error:", error);
+        const storedToken = localStorage.getItem('sb-bifxppsanaalorhvmjte-auth-token');
+        if (storedToken) {
+          const parsed = JSON.parse(storedToken);
+          if (parsed && parsed.access_token) {
+            const mockSession = {
+              access_token: parsed.access_token,
+              refresh_token: parsed.refresh_token || 'dummy-refresh',
+              expires_in: 3600,
+              token_type: "bearer",
+              user: parsed.user
+            } as any;
+            
+            setSession(mockSession);
+            
+            // Map profile dynamically from mock user or localStorage Profiles
+            const user = parsed.user;
+            const profiles = JSON.parse(localStorage.getItem("mock_db_profiles") || "[]");
+            let userProfile = profiles.find((p: any) => p.id === user.id || p.email === user.email);
+            
+            if (!userProfile) {
+              const savedIntended = (localStorage.getItem('intended_role') as RoleId) || 'admin';
+              const activeRoleNorm = savedIntended === 'reception' ? 'receptionist' : savedIntended;
+              
+              userProfile = {
+                id: user.id || 'mock-admin-user-uuid-12345',
+                email: user.email || 'ro224313@gmail.com',
+                full_name: user.user_metadata?.full_name || 'Protocol Executive',
+                role: activeRoleNorm,
+                plan: (localStorage.getItem(`plan_${user.id}`) as 'free' | 'pro') || 'pro'
+              };
+            }
+            
+            setProfile(userProfile);
+          } else {
+            setSession(null);
+            setProfile(null);
+          }
         } else {
-          initialSession = data?.session;
-        }
+          // If no custom logged in user and NOT signed out explicitly, log in as fallback admin
+          const signedOut = localStorage.getItem("mock_signed_out") === "true";
+          if (!signedOut) {
+            const fallbackUser = {
+              id: "mock-admin-user-uuid-12345",
+              email: "ro224313@gmail.com",
+              user_metadata: { full_name: "AV CARE Admin Executive" },
+              aud: "authenticated",
+              role: "authenticated"
+            };
+            const fallbackSession = {
+              access_token: "dummy-token",
+              refresh_token: "dummy-refresh",
+              expires_in: 3600,
+              token_type: "bearer",
+              user: fallbackUser
+            } as any;
 
-        // Fallback for offline prototype
-        if (!initialSession) {
-           const mockTokenStr = localStorage.getItem('sb-bifxppsanaalorhvmjte-auth-token');
-           if (mockTokenStr) {
-              try {
-                const mockToken = JSON.parse(mockTokenStr);
-                if (mockToken && mockToken.access_token) {
-                   initialSession = {
-                      access_token: mockToken.access_token,
-                      refresh_token: mockToken.refresh_token,
-                      expires_in: 3600,
-                      token_type: "bearer",
-                      user: mockToken.user
-                   } as any;
-                }
-              } catch (e) {}
-           }
-        }
+            localStorage.setItem('sb-bifxppsanaalorhvmjte-auth-token', JSON.stringify(fallbackSession));
+            localStorage.setItem('mock_authed_user', JSON.stringify(fallbackUser));
+            localStorage.setItem('intended_role', 'admin');
 
-        setSession(initialSession);
-        
-        if (initialSession) {
-          await fetchProfile(
-            initialSession.user.id,
-            initialSession.user.email || '',
-            initialSession.user.user_metadata
-          );
+            setSession(fallbackSession);
+            setProfile({
+              id: fallbackUser.id,
+              email: fallbackUser.email,
+              full_name: fallbackUser.user_metadata.full_name,
+              role: 'admin',
+              plan: 'pro'
+            });
+          } else {
+            setSession(null);
+            setProfile(null);
+          }
         }
-      } catch (err: any) {
-        console.error("Failed to initialize session (network error?):", err);
-        
-        // Final fallback if await getSession() outright throws an exception or timeouts
-        const mockTokenStr = localStorage.getItem('sb-bifxppsanaalorhvmjte-auth-token');
-        if (mockTokenStr) {
-           try {
-             const mockToken = JSON.parse(mockTokenStr);
-             if (mockToken && mockToken.access_token) {
-                const initialSession = {
-                   access_token: mockToken.access_token,
-                   refresh_token: mockToken.refresh_token,
-                   expires_in: 3600,
-                   token_type: "bearer",
-                   user: mockToken.user
-                } as any;
-                setSession(initialSession);
-                await fetchProfile(
-                  initialSession.user.id,
-                  initialSession.user.email || '',
-                  initialSession.user.user_metadata
-                );
-             }
-           } catch (e) {}
-        }
+      } catch (err) {
+        console.warn("Failed to load local simulation auth session:", err);
       } finally {
         setLoading(false);
       }
@@ -203,15 +118,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initSession();
 
+    // Listen to mock login/logout triggers via supabase events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setSession(currentSession);
       if (currentSession) {
-        await fetchProfile(
-          currentSession.user.id,
-          currentSession.user.email || '',
-          currentSession.user.user_metadata
-        );
+        setSession(currentSession as any);
+        const user = currentSession.user;
+        const profiles = JSON.parse(localStorage.getItem("mock_db_profiles") || "[]");
+        let userProfile = profiles.find((p: any) => p.id === user.id || p.email === user.email);
+        
+        if (!userProfile) {
+          const savedIntended = (localStorage.getItem('intended_role') as RoleId) || 'admin';
+          const activeRoleNorm = savedIntended === 'reception' ? 'receptionist' : savedIntended;
+          
+          userProfile = {
+            id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || 'System Worker',
+            role: activeRoleNorm,
+            plan: 'pro'
+          };
+        }
+        setProfile(userProfile);
       } else {
+        setSession(null);
         setProfile(null);
       }
       setLoading(false);
@@ -220,15 +149,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem('intended_role');
+  const signOut = async (customRedirectPath?: string | any) => {
+    // Determine target redirect cleanly. Ignores mouse click events.
+    const targetRedirect = (typeof customRedirectPath === 'string') ? customRedirectPath : '/';
+
+    try {
+      localStorage.removeItem("mock_authed_user");
+      localStorage.removeItem("sb-bifxppsanaalorhvmjte-auth-token");
+      localStorage.setItem("mock_signed_out", "true");
+    } catch (e) {
+      console.warn("Storage removal during signout failed:", e);
+    }
+
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn("Mock supabase signOut failed:", e);
+    }
+
     setSession(null);
     setProfile(null);
+    
+    // Perform redirection to starting role selection view page smoothly
+    navigate(targetRedirect);
   };
 
   const hasRole = (roles: RoleId[]) => {
-    return profile ? roles.includes(profile.role) : false;
+    if (!profile) return false;
+    const userRoleNorm = profile.role === 'receptionist' ? 'reception' : profile.role; 
+    const rolesNorm = roles.map(r => r === 'receptionist' ? 'reception' : r);
+    return rolesNorm.includes(userRoleNorm as any);
+  };
+
+  const updatePlan = async (newPlan: 'free' | 'pro') => {
+    if (profile) {
+      const updated = { ...profile, plan: newPlan };
+      setProfile(updated);
+      localStorage.setItem(`plan_${profile.id}`, newPlan);
+    }
   };
 
   const value = {
@@ -238,7 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signOut,
     isAdmin: profile?.role === 'admin',
-    hasRole
+    hasRole,
+    updatePlan
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

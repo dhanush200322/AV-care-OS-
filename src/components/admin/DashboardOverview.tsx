@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HeartPulse, Inbox, Activity, Calendar, Users, CreditCard, Gift, Star, Send, X, PartyPopper } from 'lucide-react';
+import { HeartPulse, Inbox, Activity, Calendar, Users, CreditCard, Gift, Star, Send, X, PartyPopper, Stethoscope, ClipboardList } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { useStore } from '../../store/useStore';
 import { cn } from '../../lib/utils';
+import { supabase } from '../../supabaseClient';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 // Mock data for today's special events (Birthdays / Achievements) including all requested staff roles
 const TODAY_EVENTS = [
@@ -50,8 +52,12 @@ const TODAY_EVENTS = [
 ];
 
 export const DashboardOverview: React.FC = () => {
+  const { t } = useTranslation();
   const { 
     patients, 
+    doctors,
+    appointments,
+    labReports,
     invoices, 
     broadcasts, 
     addNotification, 
@@ -61,6 +67,11 @@ export const DashboardOverview: React.FC = () => {
     wishingDashboards 
   } = useStore();
 
+  const [patientsCount, setPatientsCount] = useState<number>(0);
+  const [doctorsCount, setDoctorsCount] = useState<number>(0);
+  const [appointmentsCount, setAppointmentsCount] = useState<number>(0);
+  const [reportsCount, setReportsCount] = useState<number>(0);
+
   const [selectedCelebrant, setSelectedCelebrant] = useState<any | null>(null);
   const [wishChannel, setWishChannel] = useState<'SMS' | 'Email' | 'WhatsApp' | 'Dashboard'>('WhatsApp');
   const [selectedWishDashboard, setSelectedWishDashboard] = useState<string>('Main Lobby Portal');
@@ -68,6 +79,49 @@ export const DashboardOverview: React.FC = () => {
   const [wishMessage, setWishMessage] = useState<string>('');
   const [wishSuccess, setWishSuccess] = useState<boolean>(false);
   const [wishedEvents, setWishedEvents] = useState<Set<string>>(new Set());
+
+  const fetchCounts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [patientsRes, doctorsRes, appointmentsRes, reportsRes] = await Promise.all([
+        supabase.from('patients').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('doctors').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('lab_reports').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+      ]);
+
+      setPatientsCount(patientsRes.count !== null ? (patientsRes.count ?? 0) : patients.length);
+      setDoctorsCount(doctorsRes.count !== null ? (doctorsRes.count ?? 0) : doctors.length);
+      setAppointmentsCount(appointmentsRes.count !== null ? (appointmentsRes.count ?? 0) : appointments.length);
+      setReportsCount(reportsRes.count !== null ? (reportsRes.count ?? 0) : labReports.length);
+    } catch (err) {
+      console.warn("Failed to fetch dashboard counts status:", err);
+      setPatientsCount(patients.length);
+      setDoctorsCount(doctors.length);
+      setAppointmentsCount(appointments.length);
+      setReportsCount(labReports.length);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchCounts();
+  }, [patients, doctors, appointments, labReports]);
+
+  React.useEffect(() => {
+    const patSub = supabase.channel('patients-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, fetchCounts).subscribe();
+    const docSub = supabase.channel('doctors-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'doctors' }, fetchCounts).subscribe();
+    const aptSub = supabase.channel('appointments-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, fetchCounts).subscribe();
+    const repSub = supabase.channel('reports-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'lab_reports' }, fetchCounts).subscribe();
+
+    return () => {
+      patSub.unsubscribe();
+      docSub.unsubscribe();
+      aptSub.unsubscribe();
+      repSub.unsubscribe();
+    };
+  }, []);
   
   const totalRevenue = invoices.filter(inv => inv.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0);
 
@@ -121,7 +175,7 @@ export const DashboardOverview: React.FC = () => {
           <div className="flex items-center gap-2 mb-1 w-full">
              <HeartPulse className="w-5 h-5 flex-shrink-0 text-cyan-500" />
              <h1 className="text-xl md:text-3xl font-light tracking-tight text-white capitalize whitespace-nowrap overflow-hidden text-ellipsis w-full">
-               Admin <span className="font-bold text-cyan-500">Dashboard</span>
+               {t('Admin')} <span className="font-bold text-cyan-500">{t('Dashboard')}</span>
              </h1>
           </div>
           <p className="text-white/40 text-[10px] md:text-xs tracking-widest font-black uppercase flex items-center gap-2 w-full truncate">
@@ -137,11 +191,11 @@ export const DashboardOverview: React.FC = () => {
            <div className="flex items-center justify-between border-b border-white/5 pb-3">
              <div className="flex items-center gap-2">
                 <Gift className="w-5 h-5 text-fuchsia-500 animate-[bounce_2s_infinite]" />
-                <h2 className="text-xs font-black uppercase text-white tracking-widest leading-none">Today's Celebrants Widget</h2>
+                <h2 className="text-xs font-black uppercase text-white tracking-widest leading-none">{t("Today's Celebrants Widget")}</h2>
              </div>
              {notificationCounter > 0 && (
                 <span className="bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-400 font-extrabold text-[9px] px-2.5 py-1 rounded-full animate-pulse uppercase tracking-widest">
-                  ★ {notificationCounter} Action Required
+                  ★ {notificationCounter} {t('Action Required')}
                 </span>
              )}
            </div>
@@ -173,7 +227,7 @@ export const DashboardOverview: React.FC = () => {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-xs font-bold text-slate-100">{person.name}</h3>
+                            <h3 className="text-xs font-bold text-slate-100">{t(person.name)}</h3>
                             <span className={cn(
                               "px-2 py-0.5 rounded text-[8px] font-black uppercase border",
                               person.category === 'Doctor' ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" :
@@ -182,10 +236,10 @@ export const DashboardOverview: React.FC = () => {
                               person.category === 'Security' ? "bg-amber-500/10 border-amber-500/25 text-amber-400" :
                               "bg-purple-500/10 border-purple-500/25 text-purple-400"
                             )}>
-                              {person.category}
+                              {t(person.category)}
                             </span>
                           </div>
-                          <p className="text-[10px] text-white/40 font-black tracking-widest uppercase mt-0.5">{person.role}</p>
+                          <p className="text-[10px] text-white/40 font-black tracking-widest uppercase mt-0.5">{t(person.role)}</p>
                           <p className="text-[9px] text-white/30 font-semibold tracking-wider font-mono mt-0.5">Age: {person.age} Yrs • Born: {person.birthdayDate}</p>
                         </div>
                       </div>
@@ -371,10 +425,10 @@ export const DashboardOverview: React.FC = () => {
       {/* 2. REAL KPI STRIP (If data exists) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
         {[
-          { title: 'Total Patients', value: patients.length, icon: Users, color: '#3B82F6' },
-          { title: 'Active Admits', value: patients.filter(p => p.status === 'admitted').length, icon: Activity, color: '#A855F7' },
-          { title: 'Paid Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: CreditCard, color: '#10B981' },
-          { title: 'Invoices', value: invoices.length, icon: Calendar, color: '#22D3EE' },
+          { title: t('Total Patients'), value: patientsCount, icon: Users, color: '#3B82F6' },
+          { title: t('Total Doctors'), value: doctorsCount, icon: Stethoscope, color: '#10B981' },
+          { title: t('Total Appointments'), value: appointmentsCount, icon: Calendar, color: '#A855F7' },
+          { title: t('Total Notes/Reports'), value: reportsCount, icon: ClipboardList, color: '#22D3EE' },
         ].map((kpi, i) => (
           <motion.div
             key={kpi.title}

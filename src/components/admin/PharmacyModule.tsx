@@ -24,8 +24,10 @@ import {
 } from 'lucide-react';
 import { useStore, PharmacyItem, Invoice } from '../../store/useStore';
 import { cn } from '../../lib/utils';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export const PharmacyModule: React.FC = () => {
+  const { t } = useTranslation();
   const { 
     pharmacyItems, 
     addPharmacyItem, 
@@ -471,8 +473,8 @@ export const PharmacyModule: React.FC = () => {
                             <tr key={med.id} className="border-b border-white/[0.02] hover:bg-white/[0.01] transition-all group">
                               <td className="py-4 px-4 font-mono text-[10px] text-white/40">{med.id}</td>
                               <td className="py-4 px-4">
-                                <span className="font-bold text-xs text-white uppercase tracking-wide">{med.name}</span>
-                                <span className="block text-[8px] text-purple-400 mt-0.5 tracking-widest uppercase font-black">{med.category}</span>
+                                <span className="font-bold text-xs text-white uppercase tracking-wide">{t(med.name)}</span>
+                                <span className="block text-[8px] text-purple-400 mt-0.5 tracking-widest uppercase font-black">{t(med.category)}</span>
                               </td>
                               <td className="py-4 px-4">
                                 <div className="flex items-center gap-2">
@@ -482,7 +484,7 @@ export const PharmacyModule: React.FC = () => {
                                     med.qty <= 10 ? "bg-amber-500/10 text-amber-400" :
                                     "bg-emerald-500/10 text-emerald-400"
                                   )}>
-                                    {med.qty} Units
+                                    {med.qty} {t('Units')}
                                   </span>
                                 </div>
                               </td>
@@ -491,7 +493,7 @@ export const PharmacyModule: React.FC = () => {
                                   "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border",
                                   expStatus.color
                                 )}>
-                                  {expStatus.label}
+                                  {t(expStatus.label)}
                                 </span>
                               </td>
                               <td className="py-4 px-4 font-black text-xs text-white">₹{med.price}</td>
@@ -705,15 +707,15 @@ export const PharmacyModule: React.FC = () => {
                     {/* Invoice detail panel */}
                     <div className="p-4 bg-slate-950 border border-white/5 rounded-2xl space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest">Reference Ref</span>
-                        <span className="text-xs font-mono text-cyan-400 font-bold">{activeSelectedInvoice.id}</span>
+                        <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Reference Ref</span>
+                        <span className="text-xs text-cyan-400 font-bold uppercase tracking-wider">{activeSelectedInvoice.id}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest">Recipient Patient</span>
+                        <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Recipient Patient</span>
                         <span className="text-xs text-white font-bold uppercase tracking-wider">{activeSelectedInvoice.patient}</span>
                       </div>
                       <div className="border-t border-white/5 pt-2.5">
-                        <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest block mb-1">Billing Items</span>
+                        <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest block mb-1">Billing Items</span>
                         {activeSelectedInvoice.services.map((s, i) => (
                           <div key={i} className="flex justify-between text-xs text-slate-300 font-semibold py-1">
                             <span>{s.name}</span>

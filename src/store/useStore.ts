@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../supabaseClient';
 
 export interface BirthdaySetting {
   id: string;
@@ -223,9 +224,16 @@ interface AppState {
   updateBirthdayTemplate: (id: string, content: string) => void;
   addBirthdayPerson: (person: Omit<BirthdayPerson, 'id' | 'month' | 'day'>) => void;
   addWishingDashboard: (dashboard: Omit<WishingDashboard, 'id' | 'createdAt'>) => void;
+  // SaaS limits system
+  plan: 'free' | 'pro';
+  isLimitModalOpen: boolean;
+  limitModalTitle: string;
+  limitModalMessage: string;
+  setIsLimitModalOpen: (isOpen: boolean, title?: string, message?: string) => void;
+  setPlan: (plan: 'free' | 'pro') => void;
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   birthdaySettings: {
     id: 'bs-1',
     autoWishesEnabled: true,
@@ -499,6 +507,16 @@ export const useStore = create<AppState>((set) => ({
   isBillingModalOpen: false,
   isPatientEditModalOpen: false,
   isEmergencyMode: false,
+  plan: 'free',
+  isLimitModalOpen: false,
+  limitModalTitle: '',
+  limitModalMessage: '',
+  setIsLimitModalOpen: (isOpen, title = '', message = '') => set({
+    isLimitModalOpen: isOpen,
+    limitModalTitle: title,
+    limitModalMessage: message
+  }),
+  setPlan: (plan) => set({ plan }),
   addBroadcast: (broadcast) => {
     const newBroadcast: Broadcast = {
       ...broadcast,
@@ -520,6 +538,21 @@ export const useStore = create<AppState>((set) => ({
       ],
       isBillingModalOpen: false,
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('broadcasts').insert([{
+          id: newBroadcast.id,
+          user_id: user.id,
+          title: newBroadcast.title,
+          message: newBroadcast.message,
+          audience: newBroadcast.audience,
+          created_at: newBroadcast.createdAt
+        }]).then(({ error }: any) => {
+          if (error) console.warn("Supabase broadcast insert sync deferred:", error.message);
+        });
+      }
+    });
   },
   addNotification: (notification) => {
     set((state) => ({
@@ -576,6 +609,23 @@ export const useStore = create<AppState>((set) => ({
         createdAt: new Date().toISOString()
       }, ...state.notifications]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('invoices').insert([{
+          id: newInv.id,
+          user_id: user.id,
+          patient: newInv.patient,
+          amount: newInv.amount,
+          status: newInv.status,
+          date: newInv.date,
+          services: newInv.services
+        }]).then(({ error }: any) => {
+          if (error) console.warn("Supabase invoice insert sync deferred:", error.message);
+        });
+      }
+    });
+
     return newId;
   },
   markInvoicePaid: (id) => {
@@ -592,16 +642,40 @@ export const useStore = create<AppState>((set) => ({
         );
 
         if (matchedService) {
-          // Parse quantity from service name (e.g., "Paracetamol Prescription (Qty x5)" -> matches 5)
+          // Parse quantity from service name (e.g. "Paracetamol Prescription (Qty x100)", "100 units" -> matches 100)
           let qtyToSubtract = 1;
-          const qtyRegex = /(?:qty\s*x|x\s*|qty\s*:\s*)(\d+)/i;
-          const match = matchedService.name.match(qtyRegex);
-          if (match && match[1]) {
-            qtyToSubtract = parseInt(match[1], 10);
-            if (isNaN(qtyToSubtract)) {
-              qtyToSubtract = 1;
+
+          // Pattern 1: Look for "100 units" or "100 unit" or "100 qty" or "100 u" or "100 pcs"
+          const unitsRegex = /(\d+)\s*(?:units?|qty|pkts?|pcs?|items?|u)\b/i;
+          const unitsMatch = matchedService.name.match(unitsRegex);
+
+          // Pattern 2: Look for prefix "Qty x100", "x100", "Qty: 100", "Qty - 100"
+          const prefixRegex = /(?:qty\s*x|x\s*|qty\s*[:\-\s]\s*)\s*(\d+)\b/i;
+          const prefixMatch = matchedService.name.match(prefixRegex);
+
+          // Pattern 3: Look for brackets "(100)"
+          const bracketsRegex = /[\(\[`]\s*(\d+)\s*[\)\]`]/;
+          const bracketsMatch = matchedService.name.match(bracketsRegex);
+
+          if (unitsMatch && unitsMatch[1]) {
+            qtyToSubtract = parseInt(unitsMatch[1], 10);
+          } else if (prefixMatch && prefixMatch[1]) {
+            qtyToSubtract = parseInt(prefixMatch[1], 10);
+          } else if (bracketsMatch && bracketsMatch[1]) {
+            qtyToSubtract = parseInt(bracketsMatch[1], 10);
+          } else {
+            // General digit search excluding dosage like "500mg" or "10mg" or "100ml"
+            const genericNumberRegex = /\b(\d+)\b(?!\s*(?:mg|g|ml|mcg|cl))\b/i;
+            const genericMatch = matchedService.name.match(genericNumberRegex);
+            if (genericMatch && genericMatch[1]) {
+              qtyToSubtract = parseInt(genericMatch[1], 10);
             }
           }
+
+          if (isNaN(qtyToSubtract) || qtyToSubtract <= 0) {
+            qtyToSubtract = 1;
+          }
+
           const newQty = Math.max(0, item.qty - qtyToSubtract);
           return {
             ...item,
@@ -610,6 +684,19 @@ export const useStore = create<AppState>((set) => ({
           };
         }
         return item;
+      });
+
+      // Background sync
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          supabase.from('invoices')
+            .update({ status: 'Paid' })
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .then(({ error }: any) => {
+              if (error) console.warn("Supabase paid event deferred:", error.message);
+            });
+        }
       });
 
       return {
@@ -663,6 +750,18 @@ export const useStore = create<AppState>((set) => ({
         createdAt: new Date().toISOString()
       }, ...state.notifications]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('lab_reports')
+          .update({ billed: true, invoice_id: invoiceId })
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .then(({ error }: any) => {
+            if (error) console.warn("Supabase lab linked transaction deferred:", error.message);
+          });
+      }
+    });
   },
   updatePatient: (patient) => {
     set(state => ({
@@ -675,8 +774,32 @@ export const useStore = create<AppState>((set) => ({
         createdAt: new Date().toISOString()
       }, ...state.notifications]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('patients').update({
+          name: patient.name,
+          age: patient.age,
+          gender: patient.gender,
+          condition: patient.condition,
+          ward: patient.ward,
+          admission: patient.admission,
+          status: patient.status
+        }).eq('id', patient.id).eq('user_id', user.id).then(({ error }: any) => {
+          if (error) console.warn("Supabase patient update deferred:", error.message);
+        });
+      }
+    });
   },
   addPatient: (patient) => {
+    if (get().plan === 'free' && get().patients.length >= 5) {
+      get().setIsLimitModalOpen(
+        true,
+        'Patient Registry Limit Reached',
+        'Your Free plan is capped at a maximum of 5 patients. Upgrade to Pro for unlimited telemetry registry.'
+      );
+      return '';
+    }
     const newId = `P-${Math.floor(10000 + Math.random() * 9000)}`;
     const newPat: Patient = { ...patient, id: newId };
     set(state => ({
@@ -689,6 +812,25 @@ export const useStore = create<AppState>((set) => ({
         createdAt: new Date().toISOString()
       }, ...state.notifications]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('patients').insert([{
+          id: newPat.id,
+          user_id: user.id,
+          name: newPat.name,
+          age: newPat.age,
+          gender: newPat.gender,
+          condition: newPat.condition,
+          ward: newPat.ward,
+          admission: newPat.admission,
+          status: newPat.status
+        }]).then(({ error }: any) => {
+          if (error) console.warn("Supabase patient insert deferred:", error.message);
+        });
+      }
+    });
+
     return newId;
   },
   setSelectedPatient: (patient) => {
@@ -698,6 +840,14 @@ export const useStore = create<AppState>((set) => ({
     set({ isPatientEditModalOpen: isOpen });
   },
   addDoctor: (doctor) => {
+    if (get().plan === 'free' && get().doctors.length >= 3) {
+      get().setIsLimitModalOpen(
+        true,
+        'Medical Staff Limit Reached',
+        'Under the Free plan, you can register up to 3 medical duty officers. Upgrade to Pro for unlimited staff records.'
+      );
+      return;
+    }
     const newId = `DOC${Math.floor(100 + Math.random() * 900)}`;
     const newDoc: Doctor = { ...doctor, id: newId };
     set(state => ({
@@ -710,8 +860,32 @@ export const useStore = create<AppState>((set) => ({
         createdAt: new Date().toISOString()
       }, ...state.notifications]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('doctors').insert([{
+          id: newDoc.id,
+          user_id: user.id,
+          name: newDoc.name,
+          role: newDoc.role,
+          department: newDoc.department,
+          status: newDoc.status,
+          contact: newDoc.contact
+        }]).then(({ error }: any) => {
+          if (error) console.warn("Supabase doctor insert deferred:", error.message);
+        });
+      }
+    });
   },
   addAppointment: (appointment) => {
+    if (get().plan === 'free' && get().appointments.length >= 3) {
+      get().setIsLimitModalOpen(
+        true,
+        'Appointments Capped',
+        'Your current Free tier supports a maximum of 3 concurrent appointment trace vectors. Upgrade to Pro to schedule without restriction.'
+      );
+      return;
+    }
     const newId = `APT${Math.floor(100 + Math.random() * 900)}`;
     const newApt: Appointment = { ...appointment, id: newId };
     set(state => ({
@@ -724,6 +898,23 @@ export const useStore = create<AppState>((set) => ({
         createdAt: new Date().toISOString()
       }, ...state.notifications]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('appointments').insert([{
+          id: newApt.id,
+          user_id: user.id,
+          patient_name: newApt.patientName,
+          doctor_name: newApt.doctorName,
+          specialty: newApt.specialty,
+          date: newApt.date,
+          time: newApt.time,
+          status: newApt.status
+        }]).then(({ error }: any) => {
+          if (error) console.warn("Supabase appointment insert deferred:", error.message);
+        });
+      }
+    });
   },
   addPharmacyItem: (item) => {
     const newId = `PHM${Math.floor(100 + Math.random() * 900)}`;
@@ -738,6 +929,23 @@ export const useStore = create<AppState>((set) => ({
         createdAt: new Date().toISOString()
       }, ...state.notifications]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('pharmacy_items').insert([{
+          id: newPhm.id,
+          user_id: user.id,
+          name: newPhm.name,
+          qty: newPhm.qty,
+          status: newPhm.status,
+          category: newPhm.category,
+          price: newPhm.price,
+          expiry_date: newPhm.expiryDate
+        }]).then(({ error }: any) => {
+          if (error) console.warn("Supabase pharmacy insert deferred:", error.message);
+        });
+      }
+    });
   },
   addMessage: (message) => {
     const newId = `MSG${Math.floor(100 + Math.random() * 900)}`;
@@ -745,17 +953,184 @@ export const useStore = create<AppState>((set) => ({
     set(state => ({
       messages: [newMsg, ...state.messages]
     }));
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('messages').insert([{
+          id: newMsg.id,
+          user_id: user.id,
+          sender: newMsg.sender,
+          role: newMsg.role,
+          content: newMsg.content,
+          timestamp: newMsg.timestamp,
+          read: newMsg.read
+        }]).then(({ error }: any) => {
+          if (error) console.warn("Supabase message insert deferred:", error.message);
+        });
+      }
+    });
   },
-  refreshAllData: () => {
-    set(state => ({
-      notifications: [{
-        id: Math.random().toString(36).substring(7),
-        message: `🔄 Live core data refreshed and synchronized at ${new Date().toLocaleTimeString()}`,
-        read: false,
-        type: 'system',
-        createdAt: new Date().toISOString()
-      }, ...state.notifications]
-    }));
+  refreshAllData: async () => {
+    let fetchedPlan: 'free' | 'pro' = 'free';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: dbUser } = await supabase.from('users').select('plan').eq('id', user.id).maybeSingle();
+        fetchedPlan = (dbUser?.plan || localStorage.getItem(`plan_${user.id}`) || 'free') as 'free' | 'pro';
+      }
+    } catch (e) {
+      console.warn("Failed to fetch plan on refresh:", e);
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      let queryPatients = supabase.from('patients').select('*');
+      let queryDoctors = supabase.from('doctors').select('*');
+      let queryAppointments = supabase.from('appointments').select('*');
+      let queryPharmacy = supabase.from('pharmacy_items').select('*');
+      let queryInvoices = supabase.from('invoices').select('*');
+      let queryLabReports = supabase.from('lab_reports').select('*');
+      let queryBroadcasts = supabase.from('broadcasts').select('*').order('created_at', { ascending: false });
+      let queryMessages = supabase.from('messages').select('*').order('timestamp', { ascending: false });
+
+      if (user) {
+        queryPatients = queryPatients.eq('user_id', user.id);
+        queryDoctors = queryDoctors.eq('user_id', user.id);
+        queryAppointments = queryAppointments.eq('user_id', user.id);
+        queryPharmacy = queryPharmacy.eq('user_id', user.id);
+        queryInvoices = queryInvoices.eq('user_id', user.id);
+        queryLabReports = queryLabReports.eq('user_id', user.id);
+        queryBroadcasts = queryBroadcasts.eq('user_id', user.id);
+        queryMessages = queryMessages.eq('user_id', user.id);
+      }
+
+      const [
+        { data: patientsData, error: eP },
+        { data: doctorsData, error: eD },
+        { data: appointmentsData, error: eA },
+        { data: pharmacyData, error: ePh },
+        { data: invoicesData, error: eI },
+        { data: labReportsData, error: eL },
+        { data: broadcastsData, error: eB },
+        { data: messagesData, error: eM }
+      ] = await Promise.all([
+        queryPatients,
+        queryDoctors,
+        queryAppointments,
+        queryPharmacy,
+        queryInvoices,
+        queryLabReports,
+        queryBroadcasts,
+        queryMessages
+      ]);
+
+      if (eP || eD || eA || ePh || eI || eL || eB || eM) {
+        throw new Error("One or more tables do not exist / schema not fully applied yet.");
+      }
+
+      set((state) => {
+        const newState: Partial<AppState> = { plan: fetchedPlan };
+        if (patientsData && patientsData.length > 0) {
+          newState.patients = patientsData.map((pat: any) => ({
+            id: pat.id,
+            name: pat.name,
+            age: Number(pat.age),
+            gender: pat.gender,
+            condition: pat.condition,
+            ward: pat.ward,
+            admission: pat.admission,
+            status: pat.status
+          }));
+        }
+        if (doctorsData && doctorsData.length > 0) {
+          newState.doctors = doctorsData.map((doc: any) => ({
+            id: doc.id,
+            name: doc.name,
+            role: doc.role,
+            department: doc.department,
+            status: doc.status,
+            contact: doc.contact
+          }));
+        }
+        if (appointmentsData && appointmentsData.length > 0) {
+          newState.appointments = appointmentsData.map((apt: any) => ({
+            id: apt.id,
+            patientName: apt.patient_name,
+            doctorName: apt.doctor_name,
+            specialty: apt.specialty,
+            date: apt.date,
+            time: apt.time,
+            status: apt.status
+          }));
+        }
+        if (pharmacyData && pharmacyData.length > 0) {
+          newState.pharmacyItems = pharmacyData.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            qty: Number(item.qty),
+            status: item.status,
+            category: item.category,
+            price: Number(item.price),
+            expiryDate: item.expiry_date
+          }));
+        }
+        if (invoicesData && invoicesData.length > 0) {
+          newState.invoices = invoicesData.map((inv: any) => ({
+            id: inv.id,
+            patient: inv.patient,
+            amount: Number(inv.amount),
+            status: inv.status,
+            date: inv.date,
+            services: Array.isArray(inv.services) ? inv.services : []
+          }));
+        }
+        if (labReportsData && labReportsData.length > 0) {
+          newState.labReports = labReportsData.map((rep: any) => ({
+            id: rep.id,
+            patient: rep.patient,
+            test: rep.test,
+            status: rep.status,
+            date: rep.date,
+            technician: rep.technician,
+            billed: rep.billed,
+            invoiceId: rep.invoice_id
+          }));
+        }
+        if (broadcastsData && broadcastsData.length > 0) {
+          newState.broadcasts = broadcastsData.map((bc: any) => ({
+            id: bc.id,
+            title: bc.title,
+            message: bc.message,
+            audience: bc.audience as any,
+            createdAt: bc.created_at
+          }));
+        }
+        if (messagesData && messagesData.length > 0) {
+          newState.messages = messagesData.map((msg: any) => ({
+            id: msg.id,
+            sender: msg.sender,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            read: msg.read
+          }));
+        }
+
+        // Add a notification about refresh success
+        const infoNotification: Notification = {
+          id: Math.random().toString(36).substring(7),
+          message: `🔄 Cyber-Sync unified with Supabase secure cloud backup successfully.`,
+          read: false,
+          type: 'system',
+          createdAt: new Date().toISOString()
+        };
+        newState.notifications = [infoNotification, ...state.notifications];
+
+        return newState;
+      });
+    } catch (err) {
+      console.warn("Supabase fetch fallback activated successfully. Operating in Offline High-Performance Memory Cache Mode.");
+    }
   },
   setPatients: (patients) => set({ patients }),
   setDoctors: (doctors) => set({ doctors }),

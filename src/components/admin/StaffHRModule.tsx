@@ -161,7 +161,7 @@ export const StaffHRModule: React.FC = () => {
             <tbody className="divide-y divide-white/[0.02]">
               {filteredStaff.map((m) => (
                 <tr key={m.id} className="hover:bg-white/[0.01] transition-colors text-xs font-semibold">
-                  <td className="py-4 px-4 font-mono text-purple-400 text-[10px]">{m.id}</td>
+                  <td className="py-4 px-4 text-purple-400 text-[10px] uppercase font-bold tracking-wider">{m.id}</td>
                   <td className="py-4 px-4 text-white uppercase tracking-wide">{m.name}</td>
                   <td className="py-4 px-4 text-white/60">{m.role}</td>
                   <td className="py-4 px-4">
@@ -169,8 +169,8 @@ export const StaffHRModule: React.FC = () => {
                       {m.department}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-white/50 font-mono text-[10px]">{m.shift}</td>
-                  <td className="py-4 px-4 text-white/80 font-mono">₹{m.salary.toLocaleString()}</td>
+                  <td className="py-4 px-4 text-white/50 text-[10px] uppercase font-bold tracking-wider">{m.shift}</td>
+                  <td className="py-4 px-4 text-white/90 font-black">₹{m.salary.toLocaleString()}</td>
                   <td className="py-4 px-4">
                     <span className={cn(
                       "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border",

@@ -26,6 +26,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -65,6 +66,7 @@ const MENU_GROUPS = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) => {
+  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth < 1024;
@@ -123,16 +125,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
           <div key={groupIdx} className="space-y-1">
             {!isCollapsed && (
               <h4 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">
-                {group.name}
+                {t(group.name)}
               </h4>
             )}
             {group.items.map((item) => {
               const isActive = activeTab === item.id;
+              const translatedLabel = t(item.label);
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  title={isCollapsed ? item.label : undefined}
+                  title={isCollapsed ? translatedLabel : undefined}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden",
                     isActive 
@@ -151,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
                   </div>
                   {!isCollapsed && (
                     <span className="flex-1 text-left text-[13px] font-semibold tracking-wide whitespace-nowrap">
-                       {item.label}
+                       {translatedLabel}
                     </span>
                   )}
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-10 pointer-events-none bg-gradient-to-r from-purple-500 to-transparent" />
@@ -166,11 +169,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
       <div className="p-4 border-t border-white/5 space-y-2 shrink-0">
         <button
           onClick={onLogout}
-          title={isCollapsed ? "Logout" : undefined}
+          title={isCollapsed ? t('Logout') : undefined}
           className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500/60 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 border border-transparent transition-all group", isCollapsed && "justify-center px-0")}
         >
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-          {!isCollapsed && <span className="text-xs font-bold tracking-widest uppercase">Logout</span>}
+          {!isCollapsed && <span className="text-xs font-bold tracking-widest uppercase">{t('Logout')}</span>}
         </button>
         
         <button

@@ -1,16 +1,340 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 @layer base {
   body {
     @apply bg-slate-950 text-slate-100 antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  }
+}
+
+/* ----------------------------------------------------
+   PREMIUM THEME ANIMATIONS & TRANSITIONS
+   ---------------------------------------------------- */
+*, *::before, *::after {
+  transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+              color 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              text-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.3s ease-out;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 23, 42, 0.15) !important;
+}
+html.light ::-webkit-scrollbar-track {
+  background-color: transparent !important;
+}
+
+/* ----------------------------------------------------
+   LIGHT THEME OS OVERRIDES (Saas / Linear / Vercel Styled)
+   ---------------------------------------------------- */
+html.light,
+html.light body {
+  background-color: #f6f8fa !important;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(168, 85, 247, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.03) 0px, transparent 50%) !important;
+  color: #0f172a !important;
+}
+
+/* Structural & Container Redirection for Light Theme */
+html.light {
+  /* Layout backgrounds / Outer container */
+  .bg-\[\#050816\],
+  .bg-\[\#050816\]\/80,
+  .bg-\[\#050816\]\/90,
+  .bg-slate-950 {
+    background-color: #f6f8fa !important;
+  }
+
+  /* Global Sidebar & Header Nav Glass overrides */
+  aside,
+  header,
+  .bg-slate-950\/50,
+  .bg-slate-900\/50,
+  .bg-slate-900\/80 {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(24px) saturate(190%) !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+  }
+
+  /* Midground sheets & Modals */
+  .bg-slate-900,
+  .bg-\[\#090d16\],
+  .bg-\[\#090d16\]\/40,
+  .bg-slate-900\/40,
+  .bg-slate-950\/80,
+  [class*="backdrop-blur-3xl"],
+  [class*="backdrop-blur-2xl"],
+  [class*="backdrop-blur-sm"] {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(28px) !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.02) !important;
+  }
+
+  /* Cards, table items, logs - convert from arbitrary hex to elegant white base */
+  .bg-white\/5,
+  .bg-white\/10,
+  .bg-white\/\[0\.01\],
+  .bg-white\/\[0\.02\],
+  .bg-white\/\[0\.03\],
+  .bg-white\/\[0\.05\],
+  .bg-slate-950\/30,
+  .bg-slate-950\/40,
+  .bg-slate-950\/50,
+  .bg-slate-950\/60,
+  .bg-slate-950\/80,
+  .bg-slate-950,
+  .bg-slate-900\/30,
+  .bg-slate-900\/40,
+  .bg-slate-900\/50,
+  .bg-slate-900\/60,
+  .bg-slate-900\/80,
+  .bg-slate-900,
+  [class*="bg-[#0f1225]"],
+  [class*="bg-[#090b1c]"],
+  [class*="bg-[#0a0d1d]"],
+  [class*="bg-[#090d16]"],
+  [class*="bg-[#0a0d1c]"],
+  [class*="bg-[#01010b]"],
+  [class*="bg-[#0f1225]/85"],
+  [class*="bg-[#0f1225]/80"],
+  [class*="bg-[#0f1225]/70"],
+  [class*="bg-[#090b1c]/90"],
+  [class*="bg-[#090b1c]/70"],
+  [class*="bg-[#090b2c]"],
+  [class*="bg-[#13112b]"] {
+    background-color: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.02), 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+  }
+
+  /* Interactive items & general system buttons */
+  .hover\:bg-white\/5:hover,
+  .hover\:bg-white\/10:hover,
+  .group:hover .group-hover\:bg-white\/10,
+  .group:hover .group-hover\:bg-white\/5,
+  [class*="bg-white/5"]:hover,
+  [class*="bg-white/10"]:hover {
+    background-color: rgba(15, 23, 42, 0.03) !important;
+  }
+
+  /* List rows, action units */
+  .bg-white\/5,
+  [class*="bg-white/5"] {
+    background-color: #f8fafc !important;
+    border-color: rgba(15, 23, 42, 0.06) !important;
+  }
+
+  /* Active lists & cards in light mode get very clean hover triggers */
+  tr.hover\:bg-white\/\[0\.01\]:hover,
+  tr:hover {
+    background-color: rgba(15, 23, 42, 0.02) !important;
+  }
+
+  /* Form inputs & selectivity overrides */
+  select, input, textarea {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: rgba(15, 23, 42, 0.12) !important;
+  }
+  select option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* Border color normalizer */
+  [class*="border-white/"],
+  [class*="border-white/5"],
+  [class*="border-white/10"],
+  [class*="border-white/20"],
+  [class*="border-white/30"],
+  .border-white\/5,
+  .border-white\/10,
+  .border-white\/15,
+  .border-white\/20,
+  .border-white\/30,
+  .border-white\/\[0\.02\] {
+    border-color: rgba(15, 23, 42, 0.08) !important;
+  }
+
+  /* Brand aesthetic borders customized for light modes */
+  [class*="border-purple-500"] { border-color: rgba(168, 85, 247, 0.2) !important; }
+  [class*="border-cyan-500"] { border-color: rgba(6, 182, 212, 0.2) !important; }
+  [class*="border-red-500"] { border-color: rgba(239, 68, 68, 0.2) !important; }
+  [class*="border-emerald-500"] { border-color: rgba(16, 185, 129, 0.2) !important; }
+
+  /* Interactive indicators / focus points */
+  .border-r.border-white\/5,
+  .border-r {
+    border-right-color: rgba(15, 23, 42, 0.08) !important;
+  }
+
+  /* Text color levels for premium, accessible contrast */
+  .text-white,
+  .text-slate-100,
+  .text-slate-50,
+  h1, h2, h3, h4, h5, h6 {
+    color: #0f172a !important;
+  }
+
+  .text-white\/90,
+  .text-white\/85,
+  .text-white\/80,
+  .text-slate-200,
+  .text-slate-300,
+  [class*="text-white/90"],
+  [class*="text-white/80"] {
+    color: #1e293b !important;
+  }
+
+  .text-white\/70,
+  .text-white\/60,
+  .text-white\/50,
+  .text-slate-400,
+  [class*="text-white/70"],
+  [class*="text-white/60"],
+  [class*="text-white/50"] {
+    color: #475569 !important;
+  }
+
+  .text-white\/40,
+  .text-white\/30,
+  .text-slate-500,
+  [class*="text-white/45"],
+  [class*="text-white/40"],
+  [class*="text-white/30"] {
+    color: #64748b !important;
+  }
+
+  .text-white\/20,
+  .text-white\/15,
+  .text-white\/10,
+  [class*="text-white/20"],
+  [class*="text-white/15"],
+  [class*="text-white/10"] {
+    color: #94a3b8 !important;
+  }
+
+  /* High Contrast Interactive Accents (no faint cyan/purple on white) */
+  .text-cyan-400,
+  [class*="text-cyan-400"] {
+    color: #0891b2 !important; /* cyan-600 */
+  }
+
+  .text-purple-400,
+  [class*="text-purple-400"] {
+    color: #9333ea !important; /* purple-600 */
+  }
+
+  .text-emerald-400,
+  [class*="text-emerald-400"] {
+    color: #16a34a !important; /* emerald-600 */
+  }
+
+  .text-rose-400,
+  [class*="text-rose-400"] {
+    color: #e11d48 !important; /* rose-600 */
+  }
+
+  .text-red-400,
+  [class*="text-red-400"] {
+    color: #dc2626 !important; /* red-600 */
+  }
+
+  .text-amber-400,
+  [class*="text-amber-400"] {
+    color: #d97706 !important; /* amber-600 */
+  }
+
+  .text-fuchsia-400,
+  [class*="text-fuchsia-400"] {
+    color: #c026d3 !important; /* fuchsia-600 */
+  }
+
+  .text-blue-400,
+  [class*="text-blue-400"] {
+    color: #2563eb !important; /* blue-600 */
+  }
+
+  /* Soft, accessible SaaS badge backgrounds in light mode */
+  .bg-emerald-500\/10,
+  [class*="bg-emerald-500/10"],
+  [class*="bg-emerald-500/20"] {
+    background-color: #f0fdf4 !important; /* emerald-50 */
+    color: #15803d !important;
+  }
+
+  .bg-red-500\/10,
+  [class*="bg-red-500/10"],
+  [class*="bg-red-500/20"] {
+    background-color: #fef2f2 !important; /* red-50 */
+    color: #b91c1c !important;
+  }
+
+  .bg-amber-500\/10,
+  [class*="bg-amber-500/10"],
+  [class*="bg-amber-500/20"] {
+    background-color: #fffbeb !important; /* amber-50 */
+    color: #b45309 !important;
+  }
+
+  .bg-purple-500\/10,
+  [class*="bg-purple-500/10"],
+  [class*="bg-purple-500/20"] {
+    background-color: #faf5ff !important; /* purple-50 */
+    color: #7e22ce !important;
+  }
+
+  .bg-cyan-500\/10,
+  [class*="bg-cyan-500/10"],
+  [class*="bg-cyan-500/20"] {
+    background-color: #ecfeff !important; /* cyan-50 */
+    color: #0369a1 !important;
+  }
+
+  .bg-rose-500\/10,
+  [class*="bg-rose-500/10"],
+  [class*="bg-rose-500/20"] {
+    background-color: #fff1f2 !important; /* rose-50 */
+    color: #be123c !important;
+  }
+
+  .bg-fuchsia-500\/10,
+  [class*="bg-fuchsia-500/10"],
+  [class*="bg-fuchsia-500/20"] {
+    background-color: #fdf4ff !important; /* fuchsia-50 */
+    color: #a21caf !important;
+  }
+
+  /* Recharts custom overrides to ensure beautiful readable axes & lines */
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke: rgba(15, 23, 42, 0.08) !important;
+  }
+  
+  .recharts-text,
+  .recharts-cartesian-axis-tick text {
+    fill: #475569 !important;
+    font-weight: 500 !important;
+  }
+
+  .recharts-tooltip-cursor {
+    fill: rgba(15, 23, 42, 0.03) !important;
+  }
+
+  /* Theme-specific Shadows & Shimmers */
+  .shadow-\[0_0_10px_rgba\(168\,85\,247\,0\.3\)\] {
+    box-shadow: 0 4px 14px rgba(168, 85, 247, 0.1) !important;
   }
 }
 
@@ -32,4 +356,5 @@
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
 

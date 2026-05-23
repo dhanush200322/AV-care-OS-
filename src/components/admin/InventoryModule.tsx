@@ -173,7 +173,7 @@ export const InventoryModule: React.FC = () => {
                 const isUnderStocked = item.quantity < item.minLimit;
                 return (
                   <tr key={item.id} className="hover:bg-white/[0.01] transition-colors text-xs font-semibold">
-                    <td className="py-4 px-4 font-mono text-purple-400 text-[10px]">{item.id}</td>
+                    <td className="py-4 px-4 text-purple-400 text-[10px] uppercase font-bold tracking-wider">{item.id}</td>
                     <td className="py-4 px-4 text-white uppercase tracking-wide">
                       <div className="flex items-center gap-2">
                         {isUnderStocked && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />}
@@ -183,13 +183,13 @@ export const InventoryModule: React.FC = () => {
                     <td className="py-4 px-4 text-white/60">{item.category}</td>
                     <td className="py-4 px-4">
                       <span className={cn(
-                        "font-mono font-bold text-xs uppercase tracking-wide",
+                        "font-bold text-xs uppercase tracking-wider",
                         isUnderStocked ? "text-red-400" : "text-emerald-400"
                       )}>
                         {item.quantity.toLocaleString()} {item.unit}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-white/40 font-mono text-[10px]">Under {item.minLimit} {item.unit}</td>
+                    <td className="py-4 px-4 text-white/40 text-[10px] uppercase font-bold tracking-wider">Under {item.minLimit} {item.unit}</td>
                     <td className="py-4 px-4 text-white/50">{item.location}</td>
                     <td className="py-4 px-4 text-white/60">{item.supplier}</td>
                     <td className="py-4 px-4 text-right">

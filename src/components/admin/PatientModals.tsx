@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { X, Save, Edit2 } from 'lucide-react';
 import { useStore, Patient } from '../../store/useStore';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
   const { selectedPatient, updatePatient, setSelectedPatient } = useStore();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<Patient | null>(null);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
                 <Edit2 size={20} className="lucide lucide-edit-2" />
               </div>
               <div>
-                <h2 className="text-xl font-black text-white tracking-tight uppercase">Edit Patient Details</h2>
+                <h2 className="text-xl font-black text-white tracking-tight uppercase">{t('Edit Patient Details')}</h2>
                 <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">UUID: {formData.id}</p>
               </div>
             </div>
@@ -60,7 +62,7 @@ export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
           <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar">
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Full Name</label>
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('Full Name')}</label>
                 <input 
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -69,7 +71,7 @@ export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Age</label>
+                  <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('Age')}</label>
                   <input 
                     type="number"
                     value={formData.age}
@@ -78,15 +80,15 @@ export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Gender</label>
+                  <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('Gender')}</label>
                   <select 
                     value={formData.gender}
                     onChange={e => setFormData({ ...formData, gender: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all font-bold appearance-none"
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="Male">{t('Male')}</option>
+                    <option value="Female">{t('Female')}</option>
+                    <option value="Other">{t('Other')}</option>
                   </select>
                 </div>
               </div>
@@ -94,20 +96,20 @@ export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Medical Condition</label>
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('Medical Condition')}</label>
                 <select 
                   value={formData.condition}
                   onChange={e => setFormData({ ...formData, condition: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all font-bold appearance-none"
                 >
-                  <option value="Stable">Stable</option>
-                  <option value="Critical">Critical</option>
-                  <option value="Recovering">Recovering</option>
-                  <option value="Under Obs">Under Obs</option>
+                  <option value="Stable">{t('Stable')}</option>
+                  <option value="Critical">{t('Critical')}</option>
+                  <option value="Recovering">{t('Recovering')}</option>
+                  <option value="Under Obs">{t('Under Obs')}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Placement (Ward)</label>
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('Placement (Ward)')}</label>
                 <input 
                   value={formData.ward}
                   onChange={e => setFormData({ ...formData, ward: e.target.value })}
@@ -118,18 +120,18 @@ export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Auth Status</label>
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('Auth Status')}</label>
                 <select 
                   value={formData.status}
                   onChange={e => setFormData({ ...formData, status: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/50 transition-all font-bold appearance-none"
                 >
-                  <option value="Active">Active</option>
-                  <option value="Discharged">Discharged</option>
+                  <option value="Active">{t('Active')}</option>
+                  <option value="Discharged">{t('Discharged')}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Admission Date</label>
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('Admission Date')}</label>
                 <input 
                   type="date"
                   value={formData.admission}
@@ -142,7 +144,7 @@ export const PatientEditModal = ({ onClose }: { onClose: () => void }) => {
 
           <div className="p-8 bg-white/[0.02] border-t border-white/5">
             <button type="submit" className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl shadow-emerald-900/20 transition-all flex items-center justify-center gap-2">
-              <Save size={16} /> Update Registry Record
+              <Save size={16} /> {t('Update Registry Record')}
             </button>
           </div>
         </form>

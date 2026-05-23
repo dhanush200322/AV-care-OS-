@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 interface Column {
   key: string;
@@ -44,6 +45,7 @@ export const TableModule: React.FC<TableModuleProps> = ({
   onTrashClick,
   entityName 
 }) => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
@@ -73,30 +75,30 @@ export const TableModule: React.FC<TableModuleProps> = ({
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* breadcrumb */}
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.4em] text-white/30 font-bold mb-2">
-        <span>Admin</span>
+        <span>{t('Admin')}</span>
         <ChevronRight size={10} />
-        <span className="text-purple-400">{entityName}</span>
+        <span className="text-purple-400">{t(entityName)}</span>
       </div>
 
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-light tracking-tight text-white mb-2">
-            Manage <span className="font-bold text-purple-500">{title}</span>
+            {t('Manage')} <span className="font-bold text-purple-500">{t(title)}</span>
           </h1>
-          <p className="text-white/40 text-sm tracking-widest font-light">{subtitle}</p>
+          <p className="text-white/40 text-sm tracking-widest font-light">{t(subtitle)}</p>
         </div>
 
         <div className="flex items-center gap-4">
           <button className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs tracking-widest uppercase hover:bg-white/10 transition-all">
             <Download size={16} />
-            <span>EXFIL DATA</span>
+            <span>{t('EXFIL DATA')}</span>
           </button>
           <button 
             onClick={onAddClick}
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-500 text-white font-bold text-xs tracking-[0.2em] uppercase shadow-lg shadow-purple-900/40 hover:scale-105 active:scale-95 transition-all"
           >
             <Plus size={18} />
-            <span>NEW {entityName.toUpperCase()}</span>
+            <span>{t('NEW')} {t(entityName).toUpperCase()}</span>
           </button>
         </div>
       </header>
@@ -109,7 +111,7 @@ export const TableModule: React.FC<TableModuleProps> = ({
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-purple-400 transition-colors" size={18} />
             <input 
               type="text" 
-              placeholder={`Search ${entityName.toLowerCase()} registry...`}
+              placeholder={t(`Search ${entityName.toLowerCase()} registry...`)}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-xs font-medium text-white placeholder:text-white/10 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all"
@@ -121,7 +123,7 @@ export const TableModule: React.FC<TableModuleProps> = ({
             </button>
             <div className="w-[1px] h-6 bg-white/10 mx-2" />
             <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">
-              Showing {filteredData.length} records
+              {t('Showing')} {filteredData.length} {t('records')}
             </span>
           </div>
         </div>
@@ -146,10 +148,10 @@ export const TableModule: React.FC<TableModuleProps> = ({
                 </th>
                 {columns.map((col) => (
                   <th key={col.key} className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
-                    {col.label}
+                    {t(col.label)}
                   </th>
                 ))}
-                <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 text-right">Actions</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 text-right">{t('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -177,7 +179,7 @@ export const TableModule: React.FC<TableModuleProps> = ({
                   {columns.map((col) => (
                     <td key={col.key} className="p-6">
                       <div className="text-xs font-semibold text-white/70 group-hover:text-white transition-colors">
-                        {col.render ? col.render(row[col.key], row) : row[col.key]}
+                        {col.render ? col.render(row[col.key], row) : (typeof row[col.key] === 'string' ? t(row[col.key] as string) : row[col.key])}
                       </div>
                     </td>
                   ))}
@@ -207,7 +209,7 @@ export const TableModule: React.FC<TableModuleProps> = ({
                    <td colSpan={columns.length + 2} className="p-20 text-center">
                       <div className="flex flex-col items-center gap-4 opacity-20">
                          <Search size={48} />
-                         <p className="text-sm font-bold uppercase tracking-[0.3em]">No Registry Entries Found</p>
+                         <p className="text-sm font-bold uppercase tracking-[0.3em]">{t('No Registry Entries Found')}</p>
                       </div>
                    </td>
                 </tr>
@@ -219,7 +221,7 @@ export const TableModule: React.FC<TableModuleProps> = ({
         {/* Footer / Pagination */}
         <div className="p-6 border-t border-white/5 flex items-center justify-between">
            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Page 1 of 12</span>
+              <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{t('Page 1 of 12')}</span>
            </div>
            <div className="flex items-center gap-2">
               <button className="p-2 rounded-lg bg-white/5 border border-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors" disabled>

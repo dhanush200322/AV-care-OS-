@@ -20,6 +20,10 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   const { patients, labReports, notifications, broadcasts, sentWishes } = useStore();
   const [activeTab, setActiveTab] = useState('overview');
   
+  const handleLogout = () => {
+    onLogout();
+  };
+  
   const activeBroadcasts = broadcasts?.filter(b => b.audience === 'all' || b.audience === 'doctor') || [];
   const incomingGreetings = sentWishes?.filter(w => w.wishType === 'Dashboard' && w.dashboardSource === 'Doctor Dashboard') || [];
 
@@ -51,7 +55,7 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
             </button>
           ))}
         </nav>
-        <button onClick={onLogout} className="p-3 rounded-xl text-white/20 hover:bg-red-500/10 hover:text-red-500 transition-all">
+        <button onClick={handleLogout} className="p-3 rounded-xl text-white/20 hover:bg-red-500/10 hover:text-red-500 transition-all">
           <LogOut size={20} />
         </button>
       </aside>
@@ -106,7 +110,7 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                      animate={{ opacity: 1, y: 0 }}
                      className="p-5 rounded-2xl bg-gradient-to-r from-purple-500/15 via-indigo-500/5 to-cyan-500/10 border border-purple-500/30 flex items-start gap-4 shadow-xl shadow-purple-950/10 relative overflow-hidden group animate-pulse"
                   >
-                     <div className="absolute right-4 top-4 text-[8px] font-mono text-purple-300 truncate font-black">
+                     <div className="absolute right-4 top-4 text-[8px] text-purple-300 truncate font-black uppercase tracking-wider animate-pulse">
                         {g.timeSent || "LIVE"}
                      </div>
                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
@@ -139,7 +143,7 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
                       animate={{ opacity: 1, y: 0 }}
                       className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-purple-500/10 border border-emerald-500/30 flex items-start gap-4 shadow-lg shadow-emerald-950/20 relative overflow-hidden group"
                    >
-                      <div className="absolute right-4 top-4 text-[8px] font-mono text-white/30 truncate">
+                      <div className="absolute right-4 top-4 text-[8px] text-white/35 font-bold uppercase tracking-wider truncate">
                          {new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                       <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0 animate-pulse">

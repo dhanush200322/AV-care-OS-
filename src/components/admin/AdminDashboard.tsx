@@ -62,6 +62,10 @@ const AUDIENCE_ICONS: any = {
 };
 
 export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+  const handleLogout = () => {
+    onLogout();
+  };
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [toasts, setToasts] = useState<any[]>([]);
@@ -180,10 +184,10 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
 
   return (
     <div className="flex h-screen w-full bg-[#050816] overflow-hidden font-sans selection:bg-cyan-500/30">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={onLogout} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
       
       <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar relative w-full overflow-x-hidden">
-        <TopNavbar onLogout={onLogout} onSearchClick={() => setIsSearchOpen(true)} />
+        <TopNavbar onLogout={handleLogout} onSearchClick={() => setIsSearchOpen(true)} />
         
         {/* Consistent Hero Header for Context */}
         {activeTab !== 'dashboard' && (

@@ -176,8 +176,8 @@ export const AmbulanceModule: React.FC = () => {
                 const isActive = u.status === 'Dispatched';
                 return (
                   <tr key={u.id} className="hover:bg-white/[0.01] transition-colors text-xs font-semibold">
-                    <td className="py-4 px-4 font-mono text-pink-400 text-[10px]">{u.id}</td>
-                    <td className="py-4 px-4 text-white uppercase tracking-wide font-mono text-[11px]">{u.vehicleNo}</td>
+                    <td className="py-4 px-4 text-pink-400 text-[10px] uppercase font-bold tracking-wider">{u.id}</td>
+                    <td className="py-4 px-4 text-white uppercase tracking-wider text-[11px] font-bold">{u.vehicleNo}</td>
                     <td className="py-4 px-4 text-white/60 text-[10px] font-bold uppercase">{u.type}</td>
                     <td className="py-4 px-4 text-white/80 uppercase">{u.pilot}</td>
                     <td className="py-4 px-4 text-white/60">{u.paramedic}</td>
@@ -187,10 +187,10 @@ export const AmbulanceModule: React.FC = () => {
                           <span className="text-white text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5 text-red-400">
                             <Navigation size={10} className="animate-bounce" /> {u.activeIncident}
                           </span>
-                          <span className="text-[9px] uppercase tracking-widest text-white/40">Dest: {u.destinationNode}</span>
+                          <span className="text-[9px] uppercase tracking-widest text-white/40 font-bold">Dest: {u.destinationNode}</span>
                         </div>
                       ) : (
-                        <span className="text-white/25 uppercase font-mono text-[10px]">Staged in emergency depot</span>
+                        <span className="text-white/25 uppercase text-[10px] tracking-wider font-bold">Staged in emergency depot</span>
                       )}
                     </td>
                     <td className="py-4 px-4">

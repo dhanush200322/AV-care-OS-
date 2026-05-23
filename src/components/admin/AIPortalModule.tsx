@@ -16,6 +16,7 @@ import {
   Network
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useStore } from '../../store/useStore';
 
 interface ChatMessage {
   id: string;
@@ -43,6 +44,7 @@ const PRESET_PROMPTS = [
 ];
 
 export const AIPortalModule: React.FC = () => {
+  const { plan, setIsLimitModalOpen } = useStore();
   const [messages, setMessages] = useState<ChatMessage[]>([
     { 
       id: 'm-0', 
@@ -68,6 +70,16 @@ export const AIPortalModule: React.FC = () => {
     const textToSend = customText || query;
     if (!textToSend.trim() || loading) return;
 
+    const userQueriesCount = messages.filter(m => m.role === 'user').length;
+    if (plan === 'free' && userQueriesCount >= 3) {
+      setIsLimitModalOpen(
+        true,
+        'Diagnostic Neural Core Capped',
+        'Your Free account is capped at 3 diagnostic query vectors per session. Upgrade to Pro for unlimited telemetry reasoning.'
+      );
+      return;
+    }
+
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       role: 'user',
@@ -79,82 +91,44 @@ export const AIPortalModule: React.FC = () => {
     if (!customText) setQuery('');
     setLoading(true);
 
-    if (isDemoMode) {
-      // Demonstration simulated AI responses with realistic diagnostic data
-      setTimeout(() => {
-        let aiContent = "";
-        const lowered = textToSend.toLowerCase();
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: textToSend,
+          messages: messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : m.role, content: m.content })),
+          systemInstruction: 'You are Aegis Medical AI, the core intelligence powering AV CARE OS, a hospital and clinical enterprise operational manager. Answer with technical, crisp, authoritative clinical management answers. Keep it structured, bulleted, and professional in a cybernetic theme.' 
+        })
+      });
 
-        if (lowered.includes('sla') || lowered.includes('ward') || lowered.includes('bottleneck')) {
-          aiContent = "SLA REGULATOR DIAGNOSTICS:\n\n1. Average patient intake latency in Ward 4B is currently 42.1 minutes, exceeding SLA targets by 14.1m.\n2. Primary Bottleneck: An imbalance in front-desk shifts during peak OPD hours (11:00 AM - 01:30 PM).\n3. Recommending action: Re-allocate 1 triage nurse from Telemedicine back-office queue to Ward 4B check-in Desk.";
-        } else if (lowered.includes('stock') || lowered.includes('pharmaceuticals') || lowered.includes('supply') || lowered.includes('replenish')) {
-          aiContent = "CLINICAL LOGISTICS RUNOUT FORECAST:\n\n1. Critical Risk: 'Insulin Glargine Pen-injectors' stock drops under minimum threshold within 3 days (Current count: 18 units, average consumption: 6 units/day).\n2. Moderate Risk: 'Surgical Gloves (L)' at 320 pairs (min limit 500).\n3. Reordering plan triggered: Scheduled 1500 units replenishment from Astra Supplies.";
-        } else if (lowered.includes('overhead') || lowered.includes('margin') || lowered.includes('lab') || lowered.includes('profit')) {
-          aiContent = "REVENUE LEDGER RECONCILIATION:\n\n- Gross diagnosis revenue: ₹1.89M. Direct operating overhead: ₹1.25M.\n- Net Segment Margin: 33.8%\n- Identified leak: Laboratory blood panel vials are purchased at a 12% premium relative to tier-1 vendor averages. Recommend renegotiating with LifeTech Diagnostics.";
-        } else {
-          aiContent = `Aegis Diagnostic Query Received: "${textToSend}"\n\n- System telemetry: Normal.\n- Database nodes searched: Patients (Ready), Doctors (Ready), Billing Ledger (Ready).\n- Recommended response: Create customized automated birthday wishes templates and dispatch them to hospital groups to foster community feedback loops. Let me know if you would like me to compile a performance reports spreadsheet instead.`;
-        }
-
-        const aiMsg: ChatMessage = {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          content: aiContent,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages(prev => [...prev, aiMsg]);
-        setLoading(false);
-      }, 1200);
-
-    } else {
-      // Real API execution to Groq Llama-3
-      try {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
-            messages: [
-              { 
-                role: 'system', 
-                content: 'You are Aegis Medical AI, the core intelligence powering AV CARE OS, a hospital and clinical enterprise operational manager. Answer with technical, crisp, authoritative clinical management answers. Keep it structured, bulleted, and professional in a cybernetic theme.' 
-              },
-              ...messages.map(m => ({ role: m.role, content: m.content })),
-              { role: 'user', content: textToSend }
-            ],
-            temperature: 0.5,
-            max_tokens: 800
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`API returned status code ${response.status}`);
-        }
-
-        const data = await response.json();
-        const aiAnswer = data.choices[0]?.message?.content || "No telemetry feedback received from Aegis.";
-
-        const aiMsg: ChatMessage = {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          content: aiAnswer,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages(prev => [...prev, aiMsg]);
-      } catch (err: any) {
-        console.error("Groq query failure:", err);
-        const errorMsg: ChatMessage = {
-          id: `e-${Date.now()}`,
-          role: 'assistant',
-          content: `AI OVERLORD FAULT: Aegis Neural link disrupted. Cause: ${err.message || 'Unknown stream interruption'}. Standard fallback demonstration systems enabled.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages(prev => [...prev, errorMsg]);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`API returned status code ${response.status}`);
       }
+
+      const data = await response.json();
+      const aiAnswer = data.text || "No telemetry feedback received from Aegis.";
+
+      const aiMsg: ChatMessage = {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        content: aiAnswer,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (err: any) {
+      console.error("Gemini query failure:", err);
+      const errorMsg: ChatMessage = {
+        id: `e-${Date.now()}`,
+        role: 'assistant',
+        content: `AI OVERLORD FAULT: Aegis Neural link disrupted. Cause: ${err.message || 'Unknown stream interruption'}. Standard fallback demonstration systems enabled.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setLoading(false);
     }
   };
 

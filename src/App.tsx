@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Background } from './components/Background';
 import { Carousel } from './components/Carousel';
 import { EnterButton } from './components/EnterButton';
@@ -10,11 +10,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Power } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { SaaSLimitModal } from './components/SaaSLimitModal';
 import { DoctorDashboard } from './components/doctor/DoctorDashboard';
 import { ReceptionDashboard } from './components/reception/ReceptionDashboard';
 import { SecurityDashboard } from './components/security/SecurityDashboard';
 import { AmbulanceDashboard } from './components/ambulance/AmbulanceDashboard';
 import Unauthorized from './pages/Unauthorized';
+
+import { LanguageProvider } from './contexts/LanguageContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 function AppContent() {
   const [selectedRole, setSelectedRole] = React.useState<Role>(ROLES[1]);
@@ -22,11 +26,12 @@ function AppContent() {
   const [rememberRole, setRememberRole] = React.useState(false);
   const { profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   React.useEffect(() => {
     if (!loading && profile) {
        const currentPath = window.location.pathname;
-       if (currentPath === '/' || currentPath === '/auth') {
+       if (currentPath === '/' || currentPath === '/auth' || currentPath.endsWith('/login')) {
           // Special cases for URL mapped roles
           let targetPath = `/${profile.role}/dashboard`;
           if (profile.role === 'patient') {
@@ -77,7 +82,10 @@ function AppContent() {
                   </div>
                   <span className={`text-xs font-semibold tracking-widest uppercase transition-colors ${rememberRole ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`}>Remember selected role</span>
                 </div>
-                <div onClick={() => navigate('/auth')}>
+                <div onClick={() => {
+                  const rolePath = selectedRole.id === 'receptionist' || selectedRole.id === 'reception' ? 'reception' : selectedRole.id;
+                  navigate(`/${rolePath}/login`);
+                }}>
                   <EnterButton selectedRole={selectedRole} />
                 </div>
               </footer>
@@ -85,9 +93,41 @@ function AppContent() {
           } />
 
           <Route path="/auth" element={
+            <Navigate to={`/${selectedRole.id === 'receptionist' ? 'reception' : selectedRole.id}/login${window.location.search}`} replace />
+          } />
+
+          <Route path="/admin/login" element={
             <div className="w-full h-screen">
-              <Background selectedRole={backgroundRole} isPreview={false} />
-              <LoginView role={selectedRole} onBack={() => navigate('/')} />
+              <Background selectedRole={ROLES.find(r => r.id === 'admin')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'admin')!} onBack={() => navigate('/')} />
+            </div>
+          } />
+
+          <Route path="/doctor/login" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'doctor')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'doctor')!} onBack={() => navigate('/')} />
+            </div>
+          } />
+
+          <Route path="/reception/login" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'receptionist')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'receptionist')!} onBack={() => navigate('/')} />
+            </div>
+          } />
+
+          <Route path="/security/login" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'security')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'security')!} onBack={() => navigate('/')} />
+            </div>
+          } />
+
+          <Route path="/ambulance/login" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'ambulance')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'ambulance')!} onBack={() => navigate('/')} />
             </div>
           } />
 
@@ -128,17 +168,22 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
+      <SaaSLimitModal />
     </div>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            <AppContent />
+          </LanguageProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

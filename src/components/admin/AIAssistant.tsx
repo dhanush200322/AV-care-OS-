@@ -14,8 +14,10 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export const AIAssistant: React.FC = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false); // Default closed in floating icon form, can be clicked to open
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; content: string; actions?: any[] }[]>([
@@ -28,10 +30,20 @@ export const AIAssistant: React.FC = () => {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { birthdayPeople, sentWishes, wishingDashboards } = useStore();
+  const { birthdayPeople, sentWishes, wishingDashboards, plan, setIsLimitModalOpen } = useStore();
 
   const handleSend = async () => {
     if (!query.trim() || loading) return;
+
+    const userQueriesCount = messages.filter(m => m.role === 'user').length;
+    if (plan === 'free' && userQueriesCount >= 3) {
+      setIsLimitModalOpen(
+        true,
+        'Neural AI Core Capped',
+        'Your Free account is capped at 3 neural query vectors per session. Upgrade to Pro for unlimited telemetry reasoning.'
+      );
+      return;
+    }
     
     const userQueryText = query;
     setMessages(prev => [...prev, { role: 'user', content: userQueryText }]);
@@ -216,7 +228,7 @@ Answer the user's operational query about clinical queues, SLA branches, revenue
                <div className="relative">
                   <input 
                     type="text" 
-                    placeholder="Ask Aegis..." 
+                    placeholder={t("Ask Aegis...")}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
@@ -231,12 +243,12 @@ Answer the user's operational query about clinical queues, SLA branches, revenue
                </div>
                <div className="mt-4 grid grid-cols-2 gap-2">
                   {[
-                    { label: 'SLA Breaches', icon: AlertTriangle },
-                    { label: 'Revenue Trends', icon: TrendingUp },
+                    { label: t('SLA Breaches'), value: 'SLA Breaches', icon: AlertTriangle },
+                    { label: t('Revenue Trends'), value: 'Revenue Trends', icon: TrendingUp },
                   ].map((p) => (
                     <button 
-                      key={p.label}
-                      onClick={() => setQuery(p.label)}
+                      key={p.value}
+                      onClick={() => setQuery(p.value)}
                       className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5 text-[8px] font-black uppercase text-white/30 tracking-widest hover:text-white hover:border-white/10 transition-all"
                     >
                       <p.icon size={10} />
@@ -255,22 +267,22 @@ Answer the user's operational query about clinical queues, SLA branches, revenue
                   className="absolute inset-0 bg-[#050816]/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 border border-white/10"
                 >
                   <ShieldCheck size={48} className="text-[#00E5FF] mb-4 opacity-80" />
-                  <h3 className="text-sm font-black uppercase text-white tracking-[0.2em] mb-2 text-center">Confirm AI Action</h3>
-                  <p className="text-xl font-black text-white text-center mb-2 leading-tight">{confirmingAction.label}</p>
-                  <p className="text-[10px] text-white/50 text-center mb-8 px-4 leading-relaxed font-mono">{confirmingAction.details}</p>
+                  <h3 className="text-sm font-black uppercase text-white tracking-[0.2em] mb-2 text-center">{t('Confirm AI Action')}</h3>
+                  <p className="text-xl font-black text-white text-center mb-2 leading-tight">{t(confirmingAction.label)}</p>
+                  <p className="text-[10px] text-white/50 text-center mb-8 px-4 leading-relaxed font-mono">{t(confirmingAction.details)}</p>
                   
                   <div className="flex gap-4 w-full">
                      <button 
                        onClick={() => setConfirmingAction(null)}
                        className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/10 hover:text-white transition-colors"
                      >
-                       Cancel
+                       {t('Cancel')}
                      </button>
                      <button 
                        onClick={handleConfirmAction}
                        className="flex-1 py-3 bg-[#00E5FF] rounded-xl text-[10px] font-black uppercase tracking-widest text-[#050816] hover:bg-[#00E5FF]/80 hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"
                      >
-                       Authorize
+                       {t('Authorize')}
                      </button>
                   </div>
                 </motion.div>

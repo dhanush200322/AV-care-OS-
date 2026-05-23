@@ -22,21 +22,50 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showRoleMismatchModal, setShowRoleMismatchModal] = useState(false);
   const navigate = useNavigate();
-  const { profile } = useAuth();
+
+  React.useEffect(() => {
+    if (role?.id) {
+      localStorage.setItem('intended_role', role.id);
+    }
+  }, [role]);
   
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     try {
-      localStorage.setItem('intended_role', role.id);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + '/auth',
+      localStorage.removeItem("mock_signed_out");
+      const resolvedRole = role.id === 'reception' ? 'receptionist' : role.id;
+      
+      const dummyUser = {
+        id: `mock-google-user-${Date.now()}`,
+        email: `google-${resolvedRole}@avcare.os`,
+        user_metadata: { 
+          full_name: `Google ${role.title} Executive` 
         },
-      });
-      if (error) throw error;
+        aud: "authenticated",
+        role: "authenticated"
+      };
+
+      const dummySession = {
+        access_token: "dummy-token",
+        token_type: "bearer",
+        expires_in: 3600,
+        refresh_token: "dummy-refresh",
+        user: dummyUser
+      };
+
+      localStorage.setItem('sb-bifxppsanaalorhvmjte-auth-token', JSON.stringify(dummySession));
+      localStorage.setItem('mock_authed_user', JSON.stringify(dummyUser));
+      localStorage.setItem('intended_role', resolvedRole);
+
+      // Trigger standard supabase login simulation
+      await supabase.auth.signInWithPassword({ email: dummyUser.email, password: "oauth" });
+
+      // Navigate to the correct portal smoothly
+      const dashboardPath = `/${role.id === 'receptionist' || role.id === 'reception' ? 'reception' : role.id}/dashboard`;
+      navigate(dashboardPath, { replace: true });
     } catch (err: any) {
       setError(err.message || "OAuth initialization failed");
       setLoading(false);
@@ -50,122 +79,98 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
     setSuccessMessage(null);
 
     try {
+      const emailLower = email.trim().toLowerCase();
+      const resolvedRole = role.id === 'reception' ? 'receptionist' : role.id;
+      
       if (isLogin) {
-        const signPromise = supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('fetch timeout')), 2000));
-        const { data: authData, error: signInError } = await Promise.race([signPromise, timeoutPromise]) as any;
+        localStorage.removeItem("mock_signed_out");
         
-        if (signInError) throw signInError;
+        const dummyUser = {
+          id: `mock-user-${Date.now()}`,
+          email: emailLower || `staff-${resolvedRole}@avcare.os`,
+          user_metadata: { 
+            full_name: fullName || (emailLower ? emailLower.split('@')[0].toUpperCase() : `${role.title} Operator`) 
+          },
+          aud: "authenticated",
+          role: "authenticated"
+        };
 
-        if (authData.user) {
-          // Verify role matches selected role
-          const profilePromise = supabase
-            .from('users')
-            .select('role')
-            .eq('id', authData.user.id)
-            .single();
-          const { data: userProfile, error: profileError } = await Promise.race([profilePromise, timeoutPromise]) as any;
+        const dummySession = {
+          access_token: "dummy-token",
+          token_type: "bearer",
+          expires_in: 3600,
+          refresh_token: "dummy-refresh",
+          user: dummyUser
+        };
 
-          if (!profileError && userProfile && userProfile.role !== role.id) {
-             // Role mismatch - we prevent entry here to ensure they use the correct portal
-             await supabase.auth.signOut();
-             throw new Error("Unauthorized role access");
-          }
+        localStorage.setItem('sb-bifxppsanaalorhvmjte-auth-token', JSON.stringify(dummySession));
+        localStorage.setItem('mock_authed_user', JSON.stringify(dummyUser));
+        localStorage.setItem('intended_role', resolvedRole);
+
+        // Save users and profiles database mock row inside localStorage for store CRUD references
+        const users = JSON.parse(localStorage.getItem("mock_db_users") || "[]");
+        if (!users.some((u: any) => u.email === dummyUser.email)) {
+          users.push({ id: dummyUser.id, email: dummyUser.email, plan: "pro" });
+          localStorage.setItem("mock_db_users", JSON.stringify(users));
         }
+
+        const profiles = JSON.parse(localStorage.getItem("mock_db_profiles") || "[]");
+        if (!profiles.some((p: any) => p.email === dummyUser.email)) {
+          profiles.push({
+            id: dummyUser.id,
+            role: resolvedRole,
+            full_name: dummyUser.user_metadata.full_name,
+            email: dummyUser.email,
+            created_at: new Date().toISOString()
+          });
+          localStorage.setItem("mock_db_profiles", JSON.stringify(profiles));
+        }
+
+        // Sing in to client side API mock as well
+        await supabase.auth.signInWithPassword({ email: dummyUser.email, password });
+
+        // Navigate to the correct portal smoothly
+        const dashboardPath = `/${role.id === 'receptionist' || role.id === 'reception' ? 'reception' : role.id}/dashboard`;
+        navigate(dashboardPath, { replace: true });
       } else {
         if (password !== confirmPassword) {
           throw new Error("Tokens do not match");
         }
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('fetch timeout')), 2000));
 
-        // Check if user already exists in users table
-        const checkPromise = supabase
-          .from('users')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
-        const { data: existingProfile } = await Promise.race([checkPromise, timeoutPromise]) as any;
-        
-        if (existingProfile) {
+        const profiles = JSON.parse(localStorage.getItem("mock_db_profiles") || "[]");
+        const users = JSON.parse(localStorage.getItem("mock_db_users") || "[]");
+
+        if (profiles.some((p: any) => p.email === emailLower)) {
           throw new Error("Email already exists in neural registry. Please login.");
         }
 
-        const signUpPromise = supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-            }
-          }
-        });
-        const { data: signUpData, error: signUpError } = await Promise.race([signUpPromise, timeoutPromise]) as any;
-        if (signUpError) throw signUpError;
-        
-        if (signUpData.user) {
-          // Verify if identity was really created (Supabase returns a user but with an empty/different state if email exists but account enum is off, but we already checked users table)
-          const insertPromise = supabase
-            .from('users')
-            .insert([{ 
-              id: signUpData.user.id, 
-              email: email, 
-              role: role.id, 
-              full_name: fullName 
-            }]);
-          
-          const { error: profileInitError } = await Promise.race([insertPromise, timeoutPromise]) as any;
-          if (profileInitError) throw profileInitError;
+        const newId = `mock-user-${Date.now()}`;
+        const newProfile = {
+          id: newId,
+          role: resolvedRole,
+          full_name: fullName || emailLower.split('@')[0].toUpperCase(),
+          email: emailLower,
+          created_at: new Date().toISOString()
+        };
 
-          if (!signUpData.session) {
-            setIsLogin(true);
-            setPassword('');
-            setConfirmPassword('');
-            setSuccessMessage("Account protocol initialized. Please verify your email identifier.");
-          }
-        }
+        profiles.push(newProfile);
+        users.push({ id: newId, email: emailLower, plan: "pro" });
+
+        localStorage.setItem("mock_db_profiles", JSON.stringify(profiles));
+        localStorage.setItem("mock_db_users", JSON.stringify(users));
+
+        setIsLogin(true);
+        setPassword('');
+        setConfirmPassword('');
+        setSuccessMessage("Your account has been created locally. Please sign in now.");
       }
     } catch (err: any) {
-      if (err.message === "Failed to fetch" || err.message.includes("fetch")) {
-        // Fallback for offline or paused Supabase environments (Frontend Only Prototype)
-        console.warn("Supabase is offline. Simulating login for prototype.");
-        localStorage.setItem('intended_role', role.id);
-        
-        // Emulate successful auth state in local storage used by AuthContext
-        localStorage.setItem('sb-bifxppsanaalorhvmjte-auth-token', JSON.stringify({
-          provider_token: null,
-          provider_refresh_token: null,
-          access_token: "dummy-token",
-          expires_in: 3600,
-          expires_at: Math.floor(Date.now() / 1000) + 3600,
-          refresh_token: "dummy-refresh",
-          token_type: "bearer",
-          user: {
-            id: email || "dev-dummy-id",
-            aud: "authenticated",
-            role: "authenticated",
-            email: email,
-            app_metadata: { provider: "email" },
-            user_metadata: { full_name: fullName || email || "Dev User" },
-            identities: [],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-        }));
-        
-        // Force reload to apply dummy session
-        window.location.href = `/${role.id === 'receptionist' ? 'reception' : (role.id === 'patient' ? 'user' : role.id)}/dashboard`;
-      } else {
-        setError(err.message || "An unexpected error occurred");
-      }
+      setError(err.message || "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  
   const containerVariants: any = {
     hidden: { opacity: 0, x: 20, filter: 'blur(10px)' },
     visible: { 
@@ -405,21 +410,28 @@ export const LoginView: React.FC<LoginViewProps> = ({ role, onBack }) => {
               </motion.button>
             </form>
 
+            {error && (
+              <div id="auth-error-under-form" className="mt-4 p-2.5 rounded-xl bg-red-500/5 border border-red-500/20 text-red-400 text-[10px] text-center font-mono tracking-wider">
+                AUTH_ERROR: {error}
+              </div>
+            )}
+
             <div className="mt-8">
               <motion.button 
-                whileHover={{ scale: 1.01 }}
+                whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-white text-black text-[10px] font-black tracking-[0.2em] uppercase flex items-center justify-center gap-3 transition-all ring-1 ring-white/10 shadow-sm hover:shadow-md disabled:opacity-50"
+                className="w-full py-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] text-white/90 hover:text-white text-[9px] font-black tracking-[0.3em] uppercase flex items-center justify-center gap-3.5 transition-all duration-300 border border-white/10 hover:border-white/20 shadow-md hover:shadow-[0_0_25px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.1)] disabled:opacity-50 relative group overflow-hidden"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent -skew-x-[30deg] translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out" />
+                <svg className="w-4.5 h-4.5 drop-shadow-[0_0_2px_rgba(255,255,255,0.1)]" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
-                Continue with Google
+                <span>Continue with Google</span>
               </motion.button>
             </div>
           </div>
