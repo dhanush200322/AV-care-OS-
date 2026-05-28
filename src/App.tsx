@@ -19,6 +19,7 @@ import Unauthorized from './pages/Unauthorized';
 
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { CookieConsentProvider } from './components/cookie/CookieConsentProvider';
 
 function AppContent() {
   const [selectedRole, setSelectedRole] = React.useState<Role>(ROLES[1]);
@@ -169,6 +170,7 @@ function AppContent() {
         </Routes>
       </AnimatePresence>
       <SaaSLimitModal />
+      <CookieConsentProvider activePath={location.pathname} selectedRole={selectedRole.id} />
     </div>
   );
 }

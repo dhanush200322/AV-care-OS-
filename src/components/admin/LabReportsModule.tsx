@@ -16,6 +16,7 @@ import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
 import { EmptyState } from './EmptyState';
 import { useTranslation } from '../../contexts/LanguageContext';
+import { printLabReport } from '../../lib/printHelper';
 
 const labTests = [
   { name: "CBC", price: 300 },
@@ -61,7 +62,12 @@ export const LabReportsModule: React.FC = () => {
        id: report.id,
        patient: report.patient,
        amount: getTestPrice(report.test),
-       services: [{ name: `Lab Test: ${report.test}`, price: getTestPrice(report.test) }]
+       services: [{
+         name: `Lab Test: ${report.test}`,
+         price: getTestPrice(report.test),
+         department: 'lab',
+         labReportId: report.id,
+       }]
     });
     
     setIsBillingModalOpen(true);
@@ -194,10 +200,18 @@ export const LabReportsModule: React.FC = () => {
                            {item.status === 'Completed' ? t('Generate Bill') : t('Pending Result')}
                         </button>
                      )}
-                     <button className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white transition-all">
+                     <button 
+                       onClick={() => printLabReport(item, t)}
+                       className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white transition-all"
+                       title="View Lab Report"
+                     >
                         <Eye size={16} />
                      </button>
-                     <button className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white transition-all">
+                     <button 
+                       onClick={() => printLabReport(item, t)}
+                       className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white transition-all"
+                       title="Download Lab Report PDF"
+                     >
                         <Download size={16} />
                      </button>
                   </div>

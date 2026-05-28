@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { X, Download, Printer } from 'lucide-react';
 import { useStore, Invoice } from '../../store/useStore';
 import { useTranslation } from '../../contexts/LanguageContext';
+import { printInvoice } from '../../lib/printHelper';
 
 export const InvoiceModal = ({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) => {
   const { t } = useTranslation();
@@ -68,10 +69,16 @@ export const InvoiceModal = ({ invoice, onClose }: { invoice: Invoice; onClose: 
           </div>
         </div>
         <div className="p-8 bg-white/[0.02] border-t border-white/5 flex gap-4">
-           <button className="flex-1 py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-purple-900/20 transition-all flex items-center justify-center gap-2">
+           <button 
+             onClick={() => printInvoice(invoice, t)}
+             className="flex-1 py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-purple-900/20 transition-all flex items-center justify-center gap-2"
+           >
              <Download size={14} /> {t('Download PDF')}
            </button>
-           <button className="p-4 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-xl transition-all border border-white/5">
+           <button 
+             onClick={() => printInvoice(invoice, t)}
+             className="p-4 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-xl transition-all border border-white/5"
+           >
              <Printer size={18} />
            </button>
         </div>
@@ -105,7 +112,12 @@ export const GenerateInvoiceModal = ({ onClose }: { onClose: () => void }) => {
       patient,
       amount: Number(amount),
       status: 'Pending',
-      services: [{ name: service, price: Number(amount) }]
+      services: [{
+        name: service,
+        price: Number(amount),
+        department: service.toLowerCase().includes('lab') || service.toLowerCase().includes('pathology') || service.toLowerCase().includes('radiology') ? 'lab' : 'consultation',
+        labReportId: prefilledInvoice?.id,
+      }]
     });
 
     if (prefilledInvoice?.id) {

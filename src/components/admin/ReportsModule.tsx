@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
-  BarChart3, 
   TrendingUp, 
   Download, 
-  Calendar, 
-  Users, 
   Activity, 
-  DollarSign, 
-  ArrowUpRight,
-  TrendingDown,
   Printer,
-  ChevronDown
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -21,14 +14,12 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
-  LineChart, 
-  Line, 
   AreaChart, 
   Area 
 } from 'recharts';
 import { cn } from '../../lib/utils';
+import { printReportsLedger } from '../../lib/printHelper';
 
-// Premium high density mock reports datasets
 const MONTHLY_REVENUE_DATA = [
   { name: 'Jan', revenue: 1540000, overhead: 1200000, margin: 340000 },
   { name: 'Feb', revenue: 1680000, overhead: 1220000, margin: 460000 },
@@ -62,11 +53,11 @@ export const ReportsModule: React.FC = () => {
   const [timeline, setTimeline] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
 
   const handlePrint = () => {
-    window.print();
+    printReportsLedger(timeline, { revenue: '₹14.01M', margin: '₹4.93M' }, (k) => k);
   };
 
   const handleExport = () => {
-    alert("SLA PROTOCOL SECURE DISK: Compiling encrypted PDF telemetry sheet. Check your browser downloads directory shortly.");
+    printReportsLedger(timeline, { revenue: '₹14.01M', margin: '₹4.93M' }, (k) => k);
   };
 
   return (

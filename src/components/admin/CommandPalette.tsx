@@ -89,7 +89,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                       key={item.id}
                       className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-left group transition-colors"
                       onClick={() => {
-                        console.log('Selected:', item.label);
                         onClose();
                       }}
                     >

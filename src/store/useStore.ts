@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../supabaseClient';
+import { completeUnifiedPaymentWorkflow } from '../services/billing/unifiedPaymentWorkflow';
+import type { BillingDepartment } from '../services/billing/unifiedInvoice.types';
 
 export interface BirthdaySetting {
   id: string;
@@ -74,7 +76,14 @@ export interface Invoice {
   amount: number;
   status: 'Paid' | 'Pending';
   date: string;
-  services: { name: string; price: number }[];
+  services: {
+    name: string;
+    price: number;
+    department?: BillingDepartment;
+    itemId?: string;
+    quantity?: number;
+    labReportId?: string;
+  }[];
 }
 
 export interface Payment {
@@ -162,6 +171,8 @@ export interface LabReport {
   technician: string;
   billed?: boolean;
   invoiceId?: string;
+  paymentStatus?: 'Pending Payment' | 'Payment Completed';
+  workflowStatus?: 'Pending Payment' | 'Payment Completed' | 'Lab Confirmed' | 'Processing' | 'Report Ready';
 }
 
 interface AppState {
@@ -631,59 +642,13 @@ export const useStore = create<AppState>((set, get) => ({
   markInvoicePaid: (id) => {
     set(state => {
       const inv = state.invoices.find(i => i.id === id);
-      if (!inv) return state;
+      if (!inv || inv.status === 'Paid') return state;
 
-      // Map through pharmacy items to see if any matches the service names in the paid invoice
-      const updatedPharmacyItems = state.pharmacyItems.map(item => {
-        let matchedService = inv.services.find(srv => 
-          srv.name.toLowerCase() === item.name.toLowerCase() ||
-          srv.name.toLowerCase().includes(item.name.toLowerCase()) ||
-          item.name.toLowerCase().includes(srv.name.toLowerCase())
-        );
-
-        if (matchedService) {
-          // Parse quantity from service name (e.g. "Paracetamol Prescription (Qty x100)", "100 units" -> matches 100)
-          let qtyToSubtract = 1;
-
-          // Pattern 1: Look for "100 units" or "100 unit" or "100 qty" or "100 u" or "100 pcs"
-          const unitsRegex = /(\d+)\s*(?:units?|qty|pkts?|pcs?|items?|u)\b/i;
-          const unitsMatch = matchedService.name.match(unitsRegex);
-
-          // Pattern 2: Look for prefix "Qty x100", "x100", "Qty: 100", "Qty - 100"
-          const prefixRegex = /(?:qty\s*x|x\s*|qty\s*[:\-\s]\s*)\s*(\d+)\b/i;
-          const prefixMatch = matchedService.name.match(prefixRegex);
-
-          // Pattern 3: Look for brackets "(100)"
-          const bracketsRegex = /[\(\[`]\s*(\d+)\s*[\)\]`]/;
-          const bracketsMatch = matchedService.name.match(bracketsRegex);
-
-          if (unitsMatch && unitsMatch[1]) {
-            qtyToSubtract = parseInt(unitsMatch[1], 10);
-          } else if (prefixMatch && prefixMatch[1]) {
-            qtyToSubtract = parseInt(prefixMatch[1], 10);
-          } else if (bracketsMatch && bracketsMatch[1]) {
-            qtyToSubtract = parseInt(bracketsMatch[1], 10);
-          } else {
-            // General digit search excluding dosage like "500mg" or "10mg" or "100ml"
-            const genericNumberRegex = /\b(\d+)\b(?!\s*(?:mg|g|ml|mcg|cl))\b/i;
-            const genericMatch = matchedService.name.match(genericNumberRegex);
-            if (genericMatch && genericMatch[1]) {
-              qtyToSubtract = parseInt(genericMatch[1], 10);
-            }
-          }
-
-          if (isNaN(qtyToSubtract) || qtyToSubtract <= 0) {
-            qtyToSubtract = 1;
-          }
-
-          const newQty = Math.max(0, item.qty - qtyToSubtract);
-          return {
-            ...item,
-            qty: newQty,
-            status: (newQty === 0 ? 'Out of Stock' : newQty <= 10 ? 'Low' : 'Available') as 'Available' | 'Low' | 'Out of Stock'
-          };
-        }
-        return item;
+      const unifiedPayment = completeUnifiedPaymentWorkflow(inv, {
+        patients: state.patients,
+        pharmacyItems: state.pharmacyItems,
+        labReports: state.labReports,
+        paymentMethod: 'UPI',
       });
 
       // Background sync
@@ -701,14 +666,32 @@ export const useStore = create<AppState>((set, get) => ({
 
       return {
         invoices: state.invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i),
-        pharmacyItems: updatedPharmacyItems,
-        notifications: [{
-          id: Math.random().toString(36).substring(7),
-          message: `💳 Invoice ${id} completed at the Counter successfully. Stock adjusted.`,
-          read: false,
-          type: 'system',
-          createdAt: new Date().toISOString()
-        }, ...state.notifications],
+        pharmacyItems: unifiedPayment.updatedPharmacyItems,
+        labReports: unifiedPayment.updatedLabReports,
+        notifications: [
+          {
+            id: Math.random().toString(36).substring(7),
+            message: 'Payment completed successfully.',
+            read: false,
+            type: 'system',
+            createdAt: new Date().toISOString()
+          },
+          ...(unifiedPayment.event.medicinesDeducted.length > 0 ? [{
+            id: Math.random().toString(36).substring(7),
+            message: 'Pharmacy inventory updated automatically.',
+            read: false,
+            type: 'system' as const,
+            createdAt: new Date().toISOString()
+          }] : []),
+          ...(unifiedPayment.event.labConfirmations.length > 0 ? [{
+            id: Math.random().toString(36).substring(7),
+            message: 'Lab payment confirmed successfully.',
+            read: false,
+            type: 'system' as const,
+            createdAt: new Date().toISOString()
+          }] : []),
+          ...state.notifications
+        ],
         payments: [{
           id: `PAY-${Math.floor(1000 + Math.random() * 9000)}`,
           invoiceId: id,
@@ -741,7 +724,13 @@ export const useStore = create<AppState>((set, get) => ({
   },
   markReportAsBilled: (id, invoiceId) => {
     set(state => ({
-      labReports: state.labReports.map(r => r.id === id ? { ...r, billed: true, invoiceId } : r),
+      labReports: state.labReports.map(r => r.id === id ? {
+        ...r,
+        billed: true,
+        invoiceId,
+        paymentStatus: 'Pending Payment',
+        workflowStatus: 'Pending Payment',
+      } : r),
       notifications: [{
         id: Math.random().toString(36).substring(7),
         message: `🧪 Linked Lab Report ${id} with Billing Invoice ${invoiceId}`,
@@ -1218,3 +1207,4 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   }
 }));
+

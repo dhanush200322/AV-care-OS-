@@ -10,6 +10,8 @@ export interface UserProfile {
   avatar_url?: string;
   created_at?: string;
   plan?: 'free' | 'pro';
+  phone?: string;
+  location?: string;
 }
 
 export type ViewMode = 'selection' | 'auth' | 'dashboard';

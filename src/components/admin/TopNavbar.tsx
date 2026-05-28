@@ -23,6 +23,7 @@ import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface TopNavbarProps {
   onLogout: () => void;
@@ -31,6 +32,7 @@ interface TopNavbarProps {
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({ onLogout, onSearchClick }) => {
   const { theme, toggleTheme } = useTheme();
+  const { profile } = useAuth();
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
@@ -418,11 +420,15 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onLogout, onSearchClick })
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className="flex items-center gap-3 p-1 pr-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all group"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center border border-purple-400/30 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-              <User size={16} className="text-white" />
-            </div>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt={profile.full_name} className="w-8 h-8 rounded-full object-cover border border-purple-400/30 shadow-[0_0_10px_rgba(168,85,247,0.3)]" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center border border-purple-400/30 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                <User size={16} className="text-white" />
+              </div>
+            )}
             <div className="text-left hidden lg:block">
-              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-0.5">{t('Admin')}</p>
+              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-0.5">{profile?.full_name || t('Admin')}</p>
               <p className="text-[8px] text-cyan-400 font-bold uppercase tracking-tighter">{t('Hospital OS')}</p>
             </div>
             <ChevronDown size={12} className={cn("text-slate-500 transition-transform duration-300 ml-1 hidden sm:block", isProfileOpen && "rotate-180")} />

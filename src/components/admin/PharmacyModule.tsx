@@ -207,7 +207,13 @@ export const PharmacyModule: React.FC = () => {
       amount: calcAmount,
       status: 'Pending',
       services: [
-        { name: `${selectedItemForBill.name} Prescription (Qty x${billQuantity})`, price: calcAmount }
+        {
+          name: `${selectedItemForBill.name} Prescription (Qty x${billQuantity})`,
+          price: calcAmount,
+          department: 'pharmacy',
+          itemId: selectedItemForBill.id,
+          quantity: billQuantity,
+        }
       ]
     });
 

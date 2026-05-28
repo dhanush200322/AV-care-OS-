@@ -1,55 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HeartPulse, Inbox, Activity, Calendar, Users, CreditCard, Gift, Star, Send, X, PartyPopper, Stethoscope, ClipboardList } from 'lucide-react';
+import { HeartPulse, Inbox, Activity, Calendar, Users, Gift, Send, X, Stethoscope, ClipboardList } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { useStore } from '../../store/useStore';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../supabaseClient';
 import { useTranslation } from '../../contexts/LanguageContext';
-
-// Mock data for today's special events (Birthdays / Achievements) including all requested staff roles
-const TODAY_EVENTS = [
-  {
-    id: 1,
-    type: 'birthday',
-    name: 'Dr. Sarah Jenkins',
-    role: 'Chief Cardiologist',
-    department: 'doctors',
-    message: "Dr. Jenkins' Birthday 🎂",
-    details: "Today is Dr. Sarah Jenkins's Birthday! Let's send her a celebratory heart-saving wish!",
-    avatar: '👩‍⚕️'
-  },
-  {
-    id: 2,
-    type: 'achievement',
-    name: 'Michael Chang',
-    role: 'Security Lead',
-    department: 'roles',
-    message: "100% Safety Clearance 🌟",
-    details: "Michael Chang achieved 100% Zero-Breach Safety clearance and complete security integrity!",
-    avatar: '👮‍♂️'
-  },
-  {
-    id: 3,
-    type: 'birthday',
-    name: 'Ambulance Driver Rajesh',
-    role: 'Emergency Ambulance Pilot',
-    department: 'notifications',
-    message: "Pilot Rajesh's Birthday 🚑",
-    details: "It is Pilot Rajesh's Birthday today! Wishing him safe routes and speedy rescues across the city!",
-    avatar: '👨‍✈️'
-  },
-  {
-    id: 4,
-    type: 'achievement',
-    name: 'Nurse Emily Cooper',
-    role: 'Ward 4B Charge Nurse',
-    department: 'messages',
-    message: "Clinical Hero Nominee 🏆",
-    details: "Nurse Emily was nominated for the Healthcare Hero of the Month award for outstanding clinical care!",
-    avatar: '👩‍⚕️'
-  }
-];
 
 export const DashboardOverview: React.FC = () => {
   const { t } = useTranslation();
@@ -60,7 +16,6 @@ export const DashboardOverview: React.FC = () => {
     labReports,
     invoices, 
     broadcasts, 
-    addNotification, 
     birthdayPeople, 
     sentWishes, 
     addSentWish, 
@@ -78,7 +33,6 @@ export const DashboardOverview: React.FC = () => {
   const [wishSenderName, setWishSenderName] = useState<string>('Hospital Admin Office');
   const [wishMessage, setWishMessage] = useState<string>('');
   const [wishSuccess, setWishSuccess] = useState<boolean>(false);
-  const [wishedEvents, setWishedEvents] = useState<Set<string>>(new Set());
 
   const fetchCounts = async () => {
     try {
@@ -158,7 +112,6 @@ export const DashboardOverview: React.FC = () => {
     });
 
     setWishSuccess(true);
-    setWishedEvents(prev => new Set(prev).add(selectedCelebrant.id));
     setTimeout(() => {
       setWishSuccess(false);
       setSelectedCelebrant(null);
@@ -476,3 +429,4 @@ export const DashboardOverview: React.FC = () => {
     </div>
   );
 };
+

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useStore, BirthdayPerson, BirthdayTemplate, SentWish, WishingDashboard } from '../../store/useStore';
 import { cn } from '../../lib/utils';
+import { printBirthdayList } from '../../lib/printHelper';
 
 // Banner styling themes for hospital branding options
 const BANNER_THEMES = [
@@ -1434,8 +1435,7 @@ export const BirthdayModule: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // Satisfying simulation of triggering immediate local printing flow
-                      window.print();
+                      printBirthdayList(birthdayPeople, birthdaySettings.hospitalName, (k) => k);
                     }}
                     className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-400 hover:to-cyan-400 rounded-xl text-xs font-black uppercase text-white transition-all cursor-pointer"
                   >

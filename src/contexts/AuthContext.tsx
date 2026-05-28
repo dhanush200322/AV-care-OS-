@@ -13,6 +13,7 @@ interface AuthContextType {
   isAdmin: boolean;
   hasRole: (roles: RoleId[]) => boolean;
   updatePlan?: (newPlan: 'free' | 'pro') => Promise<void>;
+  updateProfile?: (updatedFields: Partial<UserProfile & { phone?: string; location?: string }>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,8 +65,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 email: user.email || 'ro224313@gmail.com',
                 full_name: user.user_metadata?.full_name || 'Protocol Executive',
                 role: activeRoleNorm,
-                plan: (localStorage.getItem(`plan_${user.id}`) as 'free' | 'pro') || 'pro'
+                plan: (localStorage.getItem(`plan_${user.id}`) as 'free' | 'pro') || 'pro',
+                phone: '+91 98765 43210',
+                location: 'HQ Terminal, Floor 4',
+                avatar_url: user.user_metadata?.avatar_url || ''
               };
+            }
+            if (userProfile && user.email) {
+              userProfile.email = user.email;
             }
             
             setProfile(userProfile);
@@ -102,7 +109,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: fallbackUser.email,
               full_name: fallbackUser.user_metadata.full_name,
               role: 'admin',
-              plan: 'pro'
+              plan: 'pro',
+              phone: '+91 98765 43210',
+              location: 'HQ Terminal, Floor 4',
+              avatar_url: ''
             });
           } else {
             setSession(null);
@@ -137,6 +147,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: activeRoleNorm,
             plan: 'pro'
           };
+        }
+        if (userProfile && user.email) {
+          userProfile.email = user.email;
         }
         setProfile(userProfile);
       } else {
@@ -189,6 +202,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (updatedFields: Partial<UserProfile & { phone?: string; location?: string }>) => {
+    if (profile) {
+      const updated = { ...profile, ...updatedFields };
+      setProfile(updated);
+      
+      const storedToken = localStorage.getItem('sb-bifxppsanaalorhvmjte-auth-token');
+      if (storedToken) {
+        const parsed = JSON.parse(storedToken);
+        if (parsed && parsed.user) {
+          parsed.user.email = updated.email;
+          parsed.user.user_metadata = {
+            ...parsed.user.user_metadata,
+            full_name: updated.full_name,
+            avatar_url: updated.avatar_url,
+          };
+          localStorage.setItem('sb-bifxppsanaalorhvmjte-auth-token', JSON.stringify(parsed));
+        }
+      }
+
+      const profiles = JSON.parse(localStorage.getItem("mock_db_profiles") || "[]");
+      const index = profiles.findIndex((p: any) => p.id === profile.id);
+      if (index > -1) {
+        profiles[index] = { ...profiles[index], ...updatedFields };
+      } else {
+        profiles.push(updated);
+      }
+      localStorage.setItem("mock_db_profiles", JSON.stringify(profiles));
+    }
+  };
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -197,7 +240,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     isAdmin: profile?.role === 'admin',
     hasRole,
-    updatePlan
+    updatePlan,
+    updateProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
