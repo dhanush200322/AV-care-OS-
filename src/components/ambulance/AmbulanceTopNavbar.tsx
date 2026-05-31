@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Search, Bell, Command, Siren, Sparkles, Sun, Moon, Wifi, WifiOff, Activity } from 'lucide-react';
+import { Search, Command, Siren, Sparkles, Sun, Moon, Wifi, WifiOff, Activity } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
 import { useAmbulanceStore } from '../../store/ambulanceStore';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { btnGhost, btnDanger } from './theme';
+import { NotificationBellPanel } from '../shared/communications/NotificationBellPanel';
+import { normalizePortalRole } from '../../store/communicationStore';
 
-export const AmbulanceTopNavbar: React.FC<{ onSearchClick: () => void; onAIToggle: () => void; scrolled?: boolean }> = ({ onSearchClick, onAIToggle, scrolled }) => {
+export const AmbulanceTopNavbar: React.FC<{ onSearchClick: () => void; onAIToggle: () => void; scrolled?: boolean; onOpenCommunication?: () => void }> = ({ onSearchClick, onAIToggle, scrolled, onOpenCommunication }) => {
   const { theme, toggleTheme } = useTheme();
-  const { isEmergencyMode, toggleEmergencyMode, notifications } = useStore();
-  const { wsConnected, dispatches, alerts } = useAmbulanceStore();
+  const { isEmergencyMode, toggleEmergencyMode } = useStore();
+  const { user } = useAuth();
+  const { wsConnected, dispatches } = useAmbulanceStore();
+  const portalRole = normalizePortalRole('ambulance') ?? 'ambulance';
   const activeDispatch = dispatches.filter((d) => d.status === 'Active').length;
   const [time, setTime] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t); }, []);
@@ -26,7 +31,7 @@ export const AmbulanceTopNavbar: React.FC<{ onSearchClick: () => void; onAIToggl
       {activeDispatch > 0 && <span className="px-3 py-1 rounded-full bg-[#FF7A00]/20 border border-[#FFA63D]/40 text-[#FFA63D] text-[10px] font-bold font-mono">{activeDispatch} ACTIVE</span>}
       <button type="button" onClick={toggleEmergencyMode} className={cn(btnDanger, 'py-2', isEmergencyMode && 'animate-pulse')}><Siren size={16} />SOS</button>
       <button type="button" onClick={onAIToggle} className={btnGhost}><Sparkles size={14} />AI</button>
-      <button type="button" className="relative p-2.5 rounded-xl border border-white/10"><Bell size={18} />{alerts.filter((a) => !a.acknowledged).length > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 rounded-full bg-[#FF4444] text-[9px] font-black text-white flex items-center justify-center animate-pulse">{alerts.filter((a) => !a.acknowledged).length}</span>}</button>
+      <NotificationBellPanel portalRole={portalRole} userId={user?.id} accentClass="text-[#FFA63D]" badgeClass="bg-[#FF7A00]" onOpenCommunication={onOpenCommunication} />
       <button type="button" onClick={toggleTheme} className={btnGhost}>{theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}</button>
       <div className="flex items-center gap-2 pl-2 border-l border-white/10">
         <div className="hidden sm:block text-right"><p className="text-xs font-bold text-white font-mono">Priya N.</p><p className="text-[9px] text-[#FFA63D] flex items-center justify-end gap-1"><Activity size={10} /> Dispatch</p></div>

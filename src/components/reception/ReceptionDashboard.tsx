@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Radio, CheckCircle2, AlertCircle, Info, X, LayoutDashboard, UserPlus, ListOrdered, CreditCard, Siren } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationInbox } from '../../hooks/useCommunicationInbox';
 import { useReceptionStore } from '../../store/receptionStore';
 import { ReceptionSidebar } from './ReceptionSidebar';
 import { ReceptionTopNavbar } from './ReceptionTopNavbar';
@@ -19,7 +21,7 @@ import { NotificationCenterModule } from './modules/NotificationCenterModule';
 import { HelpDeskModule } from './modules/HelpDeskModule';
 import { ReceptionMessagesModule } from './modules/ReceptionMessagesModule';
 import { ReceptionReportsModule } from './modules/ReceptionReportsModule';
-import { ReceptionSettingsModule } from './modules/ReceptionSettingsModule';
+import { CommunicationHubLayer } from '../shared/communications/CommunicationHubLayer';
 
 type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
 
@@ -39,10 +41,10 @@ export const ReceptionDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
   const [scrolled, setScrolled] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const { broadcasts, sentWishes, isEmergencyMode } = useStore();
+  const { sentWishes, isEmergencyMode } = useStore();
+  const { user } = useAuth();
+  const activeBroadcasts = useCommunicationInbox('receptionist', user?.id);
   const { simulateRealtimeTick } = useReceptionStore();
-
-  const activeBroadcasts = broadcasts?.filter((b) => b.audience === 'all' || b.audience === 'reception') || [];
   const incomingGreetings =
     sentWishes?.filter((w) => w.wishType === 'Dashboard' && w.dashboardSource === 'Reception Dashboard') || [];
 
@@ -119,6 +121,7 @@ export const ReceptionDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
           onAIToggle={() => setAiOpen((o) => !o)}
           onQuickRegister={() => setActiveTab('registration')}
           scrolled={scrolled}
+          onOpenCommunication={() => setActiveTab('messages')}
         />
 
         <main className="flex-1 overflow-y-auto no-scrollbar px-4 pb-24 lg:pb-8">
@@ -204,6 +207,7 @@ export const ReceptionDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
 
       <div className="fixed top-[-15%] right-[-10%] w-[45%] h-[45%] bg-[#00C2A8]/8 rounded-full blur-[120px] pointer-events-none" />
       <div className="fixed bottom-[-15%] left-[-10%] w-[35%] h-[35%] bg-[#00C2E0]/5 rounded-full blur-[100px] pointer-events-none" />
+      <CommunicationHubLayer accent="#FF4444" onToast={addToast} />
     </div>
   );
 };

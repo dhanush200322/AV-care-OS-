@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Radio, CheckCircle2, AlertCircle, Info, X, LayoutDashboard, MapPin, Siren, Radio as RadioIcon, Bell } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationInbox } from '../../hooks/useCommunicationInbox';
 import { useAmbulanceStore } from '../../store/ambulanceStore';
 import { AmbulanceSidebar } from './AmbulanceSidebar';
 import { AmbulanceTopNavbar } from './AmbulanceTopNavbar';
@@ -21,6 +23,7 @@ import { AmbulanceAlertsModule } from './modules/AmbulanceAlertsModule';
 import { AmbulanceReportsModule } from './modules/AmbulanceReportsModule';
 import { AmbulanceSettingsModule } from './modules/AmbulanceSettingsModule';
 import { AmbulanceMessagesModule } from './modules/AmbulanceMessagesModule';
+import { CommunicationHubLayer } from '../shared/communications/CommunicationHubLayer';
 
 type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
 
@@ -40,10 +43,10 @@ export const AmbulanceDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
   const [scrolled, setScrolled] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const { broadcasts, sentWishes, isEmergencyMode } = useStore();
+  const { sentWishes, isEmergencyMode } = useStore();
+  const { user } = useAuth();
+  const activeBroadcasts = useCommunicationInbox('ambulance', user?.id);
   const { simulateRealtimeTick, alerts } = useAmbulanceStore();
-
-  const activeBroadcasts = broadcasts?.filter((b) => b.audience === 'all' || b.audience === 'ambulance') || [];
   const incomingGreetings = sentWishes?.filter((w) => w.wishType === 'Dashboard' && w.dashboardSource === 'Ambulance Dashboard') || [];
   const hasCritical = alerts.some((a) => a.severity === 'Critical' && !a.acknowledged);
 
@@ -94,7 +97,12 @@ export const AmbulanceDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <AmbulanceTopNavbar onSearchClick={() => setIsSearchOpen(true)} onAIToggle={() => setAiOpen((o) => !o)} scrolled={scrolled} />
+        <AmbulanceTopNavbar
+          onSearchClick={() => setIsSearchOpen(true)}
+          onAIToggle={() => setAiOpen((o) => !o)}
+          scrolled={scrolled}
+          onOpenCommunication={() => setActiveTab('messages')}
+        />
 
         {(isEmergencyMode || hasCritical) && (
           <div className="mx-4 mt-2 px-4 py-2 rounded-xl bg-[#FF4444]/20 border border-[#FF4444]/50 flex items-center gap-3 animate-pulse">
@@ -157,6 +165,7 @@ export const AmbulanceDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
 
       <div className="fixed top-[-15%] right-[-10%] w-[45%] h-[45%] bg-[#FF7A00]/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="fixed bottom-[-15%] left-[-10%] w-[35%] h-[35%] bg-[#FF4444]/5 rounded-full blur-[100px] pointer-events-none" />
+      <CommunicationHubLayer accent="#FF4444" onToast={addToast} />
     </div>
   );
 };

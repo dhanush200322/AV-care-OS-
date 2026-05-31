@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
+import { CommunicationHubLayer } from '../shared/communications/CommunicationHubLayer';
 
 const AUDIENCE_ICONS: any = {
   all: Globe,
@@ -156,7 +157,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       case 'billing':
         return <BillingModule subTab="invoices" />;
       case 'messages':
-        return <MessagesModule />;
+        return <MessagesModule onToast={addToast} />;
       case 'birthdays':
         return <BirthdayModule />;
       case 'staff-hr':
@@ -187,7 +188,11 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
       
       <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar relative w-full overflow-x-hidden">
-        <TopNavbar onLogout={handleLogout} onSearchClick={() => setIsSearchOpen(true)} />
+        <TopNavbar
+          onLogout={handleLogout}
+          onSearchClick={() => setIsSearchOpen(true)}
+          onOpenCommunication={() => setActiveTab('messages')}
+        />
         
         {/* Consistent Hero Header for Context */}
         {activeTab !== 'dashboard' && (
@@ -222,6 +227,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
         </div>
 
         <AIAssistant />
+        <CommunicationHubLayer accent="#FF4444" onToast={addToast} />
       </main>
 
       {/* Overlays */}

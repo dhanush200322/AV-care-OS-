@@ -1,13 +1,40 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MessageSquare, Send, Radio, UserCircle2, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
-import { useStore } from '../../../store/useStore';
-import { cn } from '../../../lib/utils';
 import {
-  audienceFilterForVariant,
+  MessageSquare,
+  Send,
+  Radio,
+  ShieldAlert,
+  Sparkles,
+  RefreshCw,
+  Search,
+  Inbox,
+  Archive,
+  Bell,
+  Siren,
+  Filter,
+} from 'lucide-react';
+import { cn } from '../../../lib/utils';
+import { useAuth } from '../../../contexts/AuthContext';
+import {
+  CommTargetType,
+  DEPARTMENTS,
+  normalizePortalRole,
+  notificationMatches,
+  PortalAudience,
+  resolveBroadcastTarget,
+  useCommunicationStore,
+} from '../../../store/communicationStore';
+import { useCommunicationHub } from '../../../hooks/useCommunicationHub';
+import {
+  audienceBadgeClass,
+  CommunicationAudienceIcon,
+  deliveryStatusBadge,
+  recipientLabel,
+} from './CommunicationAudienceIcon';
+import {
   CommunicationsTheme,
   CommunicationsVariant,
-  defaultAudienceForVariant,
   officialWaveLabel,
   themeForVariant,
 } from './communicationsTheme';
@@ -15,6 +42,7 @@ import {
 interface CommunicationsModuleProps {
   variant: CommunicationsVariant;
   theme?: CommunicationsTheme;
+  onToast?: (type: 'success' | 'error' | 'info', msg: string) => void;
 }
 
 const INPUT =
@@ -22,360 +50,625 @@ const INPUT =
 const TEXTAREA = `${INPUT} py-3`;
 const SELECT = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs font-bold focus:outline-none';
 
+const ROLE_OPTIONS = [
+  { value: 'doctor', label: 'Doctors' },
+  { value: 'receptionist', label: 'Receptionists' },
+  { value: 'security', label: 'Security Staff' },
+  { value: 'ambulance', label: 'Ambulance Staff' },
+  { value: 'admin', label: 'Admin Team' },
+] as const;
+
+function variantToPortalRole(variant: CommunicationsVariant): PortalAudience {
+  if (variant === 'receptionist') return 'receptionist';
+  return variant;
+}
+
 export const CommunicationsModule: React.FC<CommunicationsModuleProps> = ({
   variant,
   theme: themeProp,
+  onToast,
 }) => {
   const theme = themeProp ?? themeForVariant(variant);
-  const { messages, broadcasts, addMessage, addBroadcast, refreshAllData } = useStore();
+  const { profile, user } = useAuth();
+  const { portalRole, userId } = useCommunicationHub();
+
+  const sendCommunication = useCommunicationStore((s) => s.sendCommunication);
+  const getInbox = useCommunicationStore((s) => s.getInbox);
+  const getSent = useCommunicationStore((s) => s.getSent);
+  const getLogs = useCommunicationStore((s) => s.getLogs);
+  const allNotifications = useCommunicationStore((s) => s.notifications);
+  const allCommunications = useCommunicationStore((s) => s.communications);
+  const markCommunicationRead = useCommunicationStore((s) => s.markCommunicationRead);
+  const markNotificationRead = useCommunicationStore((s) => s.markNotificationRead);
+  const markAllNotificationsRead = useCommunicationStore((s) => s.markAllNotificationsRead);
+  const archiveCommunication = useCommunicationStore((s) => s.archiveCommunication);
+  const searchCommunications = useCommunicationStore((s) => s.searchCommunications);
+  const initFromStorage = useCommunicationStore((s) => s.initFromStorage);
+
+  const effectiveRole = profile?.role ? normalizePortalRole(profile.role) ?? portalRole : variantToPortalRole(variant);
+  const senderName = profile?.full_name ?? profile?.email?.split('@')[0] ?? 'Staff User';
+  const senderRole = profile?.role ?? variant;
 
   const [composeMode, setComposeMode] = useState<'broadcast' | 'message'>('broadcast');
-  const [feedMode, setFeedMode] = useState<'broadcast' | 'message'>('broadcast');
+  const [feedTab, setFeedTab] = useState<'inbox' | 'sent' | 'logs' | 'notifications' | 'archive'>('inbox');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'broadcast' | 'direct' | 'emergency' | 'unread'>('all');
 
   const [bTitle, setBTitle] = useState('');
-  const [bAudience, setBAudience] = useState(defaultAudienceForVariant(variant));
   const [bMessage, setBMessage] = useState('');
+  const [isEmergency, setIsEmergency] = useState(false);
+  const [targetType, setTargetType] = useState<CommTargetType>('all');
+  const [targetRole, setTargetRole] = useState(effectiveRole === 'all' ? 'doctor' : effectiveRole);
+  const [targetDepartment, setTargetDepartment] = useState<string>(DEPARTMENTS[0]);
+  const [targetUserQuery, setTargetUserQuery] = useState('');
+  const [targetUserName, setTargetUserName] = useState('');
 
+  const [msgTitle, setMsgTitle] = useState('');
   const [msgContent, setMsgContent] = useState('');
-  const [selectedSender, setSelectedSender] = useState<'Nurse Emily' | 'Dr. Satish Nair' | 'Michael Chang'>('Nurse Emily');
 
-  const visibleBroadcasts = useMemo(
-    () => broadcasts.filter(audienceFilterForVariant(variant)),
-    [broadcasts, variant]
+  const inbox = useMemo(() => getInbox(effectiveRole, user?.id), [getInbox, effectiveRole, user?.id, isRefreshing]);
+  const sent = useMemo(() => getSent(user?.id), [getSent, user?.id, isRefreshing]);
+  const logs = useMemo(
+    () => getLogs(effectiveRole, user?.id, true),
+    [getLogs, effectiveRole, user?.id, allCommunications, isRefreshing]
+  );
+  const notifications = useMemo(
+    () =>
+      allNotifications
+        .filter((n) => notificationMatches(n, effectiveRole, user?.id))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [allNotifications, effectiveRole, user?.id, isRefreshing]
+  );
+  const unread = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
+  const archived = useMemo(
+    () =>
+      allCommunications.filter(
+        (c) => c.archived && matchesArchiveView(c, effectiveRole, user?.id, true)
+      ),
+    [allCommunications, effectiveRole, user?.id, isRefreshing]
   );
 
   const waveLabel = officialWaveLabel(variant);
 
-  const handleSendBroadcast = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bTitle.trim() || !bMessage.trim()) return;
-    addBroadcast({ title: bTitle, message: bMessage, audience: bAudience });
-    setBTitle('');
-    setBMessage('');
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!msgContent.trim()) return;
-    const senderRole =
-      selectedSender === 'Dr. Satish Nair'
-        ? 'Neurologist'
-        : selectedSender === 'Michael Chang'
-          ? 'Security Lead'
-          : 'Ward 4B';
-    addMessage({ sender: selectedSender, role: senderRole, content: msgContent });
-    setMsgContent('');
-  };
-
   const handleRefresh = () => {
     setIsRefreshing(true);
-    refreshAllData();
+    initFromStorage();
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
-  const audienceBadge = (audience: string) => {
-    const base = 'px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border';
-    if (audience === 'all') return cn(base, 'bg-purple-500/20 text-purple-300 border-purple-500/20');
-    if (audience === 'doctor') return cn(base, 'bg-emerald-500/20 text-emerald-300 border-emerald-500/20');
-    if (audience === 'reception') return cn(base, 'bg-teal-500/20 text-teal-300 border-teal-500/20');
-    if (audience === 'security') return cn(base, 'bg-blue-500/20 text-blue-300 border-blue-500/20');
-    return cn(base, 'bg-orange-500/20 text-orange-300 border-orange-500/20');
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bTitle.trim() || !bMessage.trim()) return;
+
+    const target = resolveBroadcastTarget({
+      targetType,
+      targetRole,
+      targetDepartment,
+      targetUserQuery,
+      targetUserName,
+    });
+
+    await sendCommunication({
+      title: bTitle.trim(),
+      message: bMessage.trim(),
+      ...target,
+      priority: isEmergency ? 'emergency' : 'announcement',
+      isEmergency,
+      senderName,
+      senderRole,
+      senderId: user?.id,
+    });
+
+    onToast?.('success', isEmergency ? 'Emergency broadcast transmitted' : 'Broadcast transmitted');
+    setBTitle('');
+    setBMessage('');
+    setIsEmergency(false);
   };
 
-  const audienceIconBox = (audience: string) => {
-    const base = 'w-11 h-11 rounded-xl flex items-center justify-center border text-white flex-shrink-0';
-    if (audience === 'all') return cn(base, 'bg-purple-500/10 border-purple-500/20 text-purple-400');
-    if (audience === 'doctor') return cn(base, 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400');
-    if (audience === 'reception') return cn(base, 'bg-teal-500/10 border-teal-500/20 text-teal-400');
-    if (audience === 'security') return cn(base, 'bg-blue-500/10 border-blue-500/20 text-blue-400');
-    return cn(base, 'bg-orange-500/10 border-orange-500/20 text-orange-400');
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!msgContent.trim()) return;
+
+    await sendCommunication({
+      title: msgTitle.trim() || 'Direct Message',
+      message: msgContent.trim(),
+      targetType: 'user',
+      targetUserName: targetUserName.trim() || 'Staff Member',
+      targetUserId: targetUserQuery.trim() || undefined,
+      priority: 'direct',
+      senderName,
+      senderRole,
+      senderId: user?.id,
+    });
+
+    onToast?.('success', 'Message sent');
+    setMsgTitle('');
+    setMsgContent('');
   };
+
+  const feedItems = useMemo(() => {
+    let list = inbox;
+    if (feedTab === 'sent') list = sent;
+    if (feedTab === 'logs') list = logs;
+    if (feedTab === 'archive') list = archived;
+    if (feedTab === 'notifications') return [];
+    if (searchQuery || filter !== 'all') {
+      list = searchCommunications(effectiveRole, searchQuery, filter).filter((c) =>
+        feedTab === 'sent' ? c.senderId === user?.id : feedTab === 'logs' ? true : !c.archived
+      );
+    } else if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.title.toLowerCase().includes(q) ||
+          c.message.toLowerCase().includes(q) ||
+          c.senderName.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [feedTab, inbox, sent, logs, archived, searchQuery, filter, searchCommunications, effectiveRole, user?.id]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[550px] items-stretch">
-      <div
-        className={cn(
-          'border rounded-3xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden',
-          theme.composePanel
-        )}
-      >
-        <div>
-          <div className="mb-4">
-            <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-1">Dispatch Center</h2>
-            <p className="text-[10px] text-white/40 uppercase tracking-widest">
-              Transmit critical waves or record feed logs
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 p-1.5 rounded-2xl bg-white/5 border border-white/5 mb-6">
-            <button
-              type="button"
-              onClick={() => setComposeMode('broadcast')}
-              className={cn(
-                'py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5',
-                composeMode === 'broadcast' ? theme.broadcastActive : theme.broadcastInactive
-              )}
-            >
-              <Radio size={12} className={cn(composeMode === 'broadcast' && 'animate-pulse')} />
-              Broadcast
-            </button>
-            <button
-              type="button"
-              onClick={() => setComposeMode('message')}
-              className={cn(
-                'py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5',
-                composeMode === 'message' ? theme.messageActive : theme.messageInactive
-              )}
-            >
-              <MessageSquare size={12} />
-              Message
-            </button>
-          </div>
-
-          {composeMode === 'broadcast' ? (
-            <form onSubmit={handleSendBroadcast} className="space-y-4">
-              <div>
-                <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
-                  Broadcast Title
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. SYSTEM PROTOCOL UPGRADED..."
-                  value={bTitle}
-                  onChange={(e) => setBTitle(e.target.value)}
-                  className={cn(INPUT, theme.inputFocus)}
-                />
-              </div>
-              <div>
-                <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
-                  Target Station / Role
-                </label>
-                <select
-                  value={bAudience}
-                  onChange={(e) => setBAudience(e.target.value as typeof bAudience)}
-                  className={cn(SELECT, theme.inputFocus)}
-                >
-                  <option className="bg-slate-950 text-white" value="all">
-                    🌐 All Stations (Global Grid)
-                  </option>
-                  <option className="bg-slate-950 text-white" value="doctor">
-                    👩‍⚕️ Doctor Dashboard (Clinical Staff)
-                  </option>
-                  <option className="bg-slate-950 text-white" value="reception">
-                    🏢 Reception Dashboard (Admissions Desk)
-                  </option>
-                  <option className="bg-slate-950 text-white" value="security">
-                    👮‍♂️ Security Dashboard (Facility Watch)
-                  </option>
-                  <option className="bg-slate-950 text-white" value="ambulance">
-                    🚑 Ambulance Dashboard (EMS Crew)
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
-                  Official Alert Message
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  value={bMessage}
-                  onChange={(e) => setBMessage(e.target.value)}
-                  placeholder="Type official emergency response instructions, server notifications or staff guidance..."
-                  className={cn(TEXTAREA, theme.inputFocus)}
-                />
-              </div>
-              <button
-                type="submit"
-                className={cn(
-                  'w-full py-3 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2',
-                  theme.broadcastSubmit
-                )}
-              >
-                <Radio size={14} className="animate-pulse" /> Transmit Broadcast
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleSendMessage} className="space-y-4">
-              <div>
-                <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
-                  Sender Identity
-                </label>
-                <select
-                  value={selectedSender}
-                  onChange={(e) => setSelectedSender(e.target.value as typeof selectedSender)}
-                  className={cn(SELECT, theme.inputFocus)}
-                >
-                  <option className="bg-slate-950 text-white" value="Nurse Emily">
-                    👩‍⚕️ Nurse Emily (Ward 4B)
-                  </option>
-                  <option className="bg-slate-950 text-white" value="Dr. Satish Nair">
-                    👨‍⚕️ Dr. Satish Nair (Neurology)
-                  </option>
-                  <option className="bg-slate-950 text-white" value="Michael Chang">
-                    👮‍♂️ Michael Chang (Security Lead)
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
-                  Comm Content
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  value={msgContent}
-                  onChange={(e) => setMsgContent(e.target.value)}
-                  placeholder="Type message status updates or chat records for clinical stream logs..."
-                  className={cn(TEXTAREA, theme.inputFocus)}
-                />
-              </div>
-              <button
-                type="submit"
-                className={cn(
-                  'w-full py-3 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2',
-                  theme.messageSubmit
-                )}
-              >
-                <Send size={14} /> Send Log Message
-              </button>
-            </form>
-          )}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
+          <Inbox size={14} className="text-white/50" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Inbox</span>
+          <span className="text-xs font-black text-white">{inbox.length}</span>
         </div>
-
-        <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-1.5 mt-6 border-t border-white/5 pt-4">
-          <ShieldAlert size={12} className={theme.footerIcon} /> SSL Core Wave Unified Tunnel
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
+          <Bell size={14} className="text-white/50" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Unread</span>
+          <span className="text-xs font-black text-emerald-400">{unread}</span>
         </div>
       </div>
 
-      <div
-        className={cn(
-          'lg:col-span-2 border rounded-3xl flex flex-col h-full overflow-hidden shadow-2xl',
-          theme.feedPanel
-        )}
-      >
-        <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.01]">
-          <div className="flex items-center gap-2">
-            <span className={cn('w-2 h-2 rounded-full animate-pulse', theme.feedDot)} />
-            <span className="text-xs font-black text-white uppercase tracking-widest">
-              Global Communications Logs
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex border border-white/10 rounded-xl p-0.5 bg-black/40">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[550px] items-stretch">
+        <div className={cn('border rounded-3xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden', theme.composePanel)}>
+          <div>
+            <div className="mb-4">
+              <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-1">
+                {variant === 'admin' ? 'Admin Broadcast Center' : 'Broadcast Center'}
+              </h2>
+              <p className="text-[10px] text-white/40 uppercase tracking-widest">
+                Target all staff, roles, departments, or individuals
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 p-1.5 rounded-2xl bg-white/5 border border-white/5 mb-6">
               <button
                 type="button"
-                onClick={() => setFeedMode('broadcast')}
+                onClick={() => setComposeMode('broadcast')}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all',
-                  feedMode === 'broadcast' ? theme.feedBroadcastTab : theme.feedBroadcastTabInactive
+                  'py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5',
+                  composeMode === 'broadcast' ? theme.broadcastActive : theme.broadcastInactive
                 )}
               >
-                Broadcasts
+                <Radio size={12} className={cn(composeMode === 'broadcast' && 'animate-pulse')} />
+                Broadcast
               </button>
               <button
                 type="button"
-                onClick={() => setFeedMode('message')}
+                onClick={() => setComposeMode('message')}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all',
-                  feedMode === 'message' ? theme.feedMessageTab : theme.feedMessageTabInactive
+                  'py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5',
+                  composeMode === 'message' ? theme.messageActive : theme.messageInactive
                 )}
               >
-                Messages
+                <MessageSquare size={12} />
+                Message
               </button>
             </div>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-            >
-              <RefreshCw size={14} className={cn(isRefreshing && 'animate-spin')} />
-            </button>
+
+            {composeMode === 'broadcast' ? (
+              <form onSubmit={handleSendBroadcast} className="space-y-4">
+                <div>
+                  <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                    Broadcast Title
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SYSTEM PROTOCOL UPGRADED..."
+                    value={bTitle}
+                    onChange={(e) => setBTitle(e.target.value)}
+                    className={cn(INPUT, theme.inputFocus)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                    Broadcast To
+                  </label>
+                  <select
+                    value={targetType}
+                    onChange={(e) => setTargetType(e.target.value as CommTargetType)}
+                    className={cn(SELECT, theme.inputFocus)}
+                  >
+                    <option className="bg-slate-950 text-white" value="all">
+                      All Staff
+                    </option>
+                    <option className="bg-slate-950 text-white" value="role">
+                      Specific Role
+                    </option>
+                    <option className="bg-slate-950 text-white" value="department">
+                      Department
+                    </option>
+                    <option className="bg-slate-950 text-white" value="user">
+                      Individual User
+                    </option>
+                  </select>
+                </div>
+
+                {targetType === 'role' && (
+                  <div>
+                    <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                      Target Role
+                    </label>
+                    <select
+                      value={targetRole}
+                      onChange={(e) => setTargetRole(e.target.value)}
+                      className={cn(SELECT, theme.inputFocus)}
+                    >
+                      {ROLE_OPTIONS.map((r) => (
+                        <option key={r.value} className="bg-slate-950 text-white" value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {targetType === 'department' && (
+                  <div>
+                    <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                      Target Department
+                    </label>
+                    <select
+                      value={targetDepartment}
+                      onChange={(e) => setTargetDepartment(e.target.value)}
+                      className={cn(SELECT, theme.inputFocus)}
+                    >
+                      {DEPARTMENTS.map((d) => (
+                        <option key={d} className="bg-slate-950 text-white" value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {targetType === 'user' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                        Search User (ID or name)
+                      </label>
+                      <input
+                        type="text"
+                        value={targetUserQuery}
+                        onChange={(e) => setTargetUserQuery(e.target.value)}
+                        placeholder="User ID or email prefix..."
+                        className={cn(INPUT, theme.inputFocus)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                        Display Name
+                      </label>
+                      <input
+                        type="text"
+                        value={targetUserName}
+                        onChange={(e) => setTargetUserName(e.target.value)}
+                        placeholder="Recipient display name"
+                        className={cn(INPUT, theme.inputFocus)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                    Official Alert Message
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={bMessage}
+                    onChange={(e) => setBMessage(e.target.value)}
+                    placeholder="Type official emergency response instructions, server notifications or staff guidance..."
+                    className={cn(TEXTAREA, theme.inputFocus)}
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border border-[#FF4444]/30 bg-[#FF4444]/10">
+                  <input
+                    type="checkbox"
+                    checked={isEmergency}
+                    onChange={(e) => setIsEmergency(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Siren size={14} className="text-[#FF4444]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#FF4444]">
+                    Emergency Broadcast Mode
+                  </span>
+                </label>
+
+                <button
+                  type="submit"
+                  className={cn(
+                    'w-full py-3 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2',
+                    isEmergency ? 'bg-[#FF4444] hover:bg-[#FF5555] shadow-lg shadow-red-900/30' : theme.broadcastSubmit
+                  )}
+                >
+                  <Radio size={14} className="animate-pulse" />{' '}
+                  {isEmergency ? 'Transmit Emergency Alert' : 'Transmit Broadcast'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleSendMessage} className="space-y-4">
+                <div>
+                  <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                    Message Title
+                  </label>
+                  <input
+                    type="text"
+                    value={msgTitle}
+                    onChange={(e) => setMsgTitle(e.target.value)}
+                    placeholder="Subject line..."
+                    className={cn(INPUT, theme.inputFocus)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                    Recipient
+                  </label>
+                  <input
+                    type="text"
+                    value={targetUserName}
+                    onChange={(e) => setTargetUserName(e.target.value)}
+                    placeholder="Recipient name"
+                    className={cn(INPUT, theme.inputFocus)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-white/30 uppercase tracking-widest block mb-1">
+                    Comm Content
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={msgContent}
+                    onChange={(e) => setMsgContent(e.target.value)}
+                    placeholder="Type message status updates or direct communication..."
+                    className={cn(TEXTAREA, theme.inputFocus)}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className={cn(
+                    'w-full py-3 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2',
+                    theme.messageSubmit
+                  )}
+                >
+                  <Send size={14} /> Send Message
+                </button>
+              </form>
+            )}
+          </div>
+
+          <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-1.5 mt-6 border-t border-white/5 pt-4">
+            <ShieldAlert size={12} className={theme.footerIcon} /> SSL Core Wave Unified Tunnel
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar max-h-[500px]">
-          <AnimatePresence mode="popLayout">
-            {feedMode === 'broadcast'
-              ? visibleBroadcasts.map((b, i) => (
-                  <motion.div
-                    key={b.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all flex items-start gap-4 hover:bg-white/[0.04] group relative overflow-hidden"
+        <div className={cn('lg:col-span-2 border rounded-3xl flex flex-col h-full overflow-hidden shadow-2xl', theme.feedPanel)}>
+          <div className="p-4 border-b border-white/5 flex flex-col gap-3 bg-white/[0.01]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className={cn('w-2 h-2 rounded-full animate-pulse', theme.feedDot)} />
+                <span className="text-xs font-black text-white uppercase tracking-widest">
+                  Communication Center
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-colors self-end sm:self-auto"
+              >
+                <RefreshCw size={14} className={cn(isRefreshing && 'animate-spin')} />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-1 border border-white/10 rounded-xl p-0.5 bg-black/40">
+              {(
+                [
+                  ['inbox', 'Inbox', Inbox],
+                  ['sent', 'Sent', Send],
+                  ['logs', 'Logs', Radio],
+                  ['notifications', 'Alerts', Bell],
+                  ['archive', 'Archive', Archive],
+                ] as const
+              ).map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFeedTab(id)}
+                  className={cn(
+                    'px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all flex items-center gap-1',
+                    feedTab === id ? theme.feedBroadcastTab : theme.feedBroadcastTabInactive
+                  )}
+                >
+                  <Icon size={10} /> {label}
+                </button>
+              ))}
+            </div>
+
+            {feedTab === 'notifications' && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => markAllNotificationsRead(effectiveRole, user?.id)}
+                  className="text-[10px] font-bold text-cyan-400 hover:underline uppercase tracking-widest"
+                >
+                  Mark all read
+                </button>
+              </div>
+            )}
+
+            {feedTab !== 'notifications' && (
+              <div className="flex flex-wrap gap-2">
+                <div className="flex-1 min-w-[140px] relative">
+                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search messages..."
+                    className="w-full pl-8 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] text-white"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <Filter size={12} className="text-white/30" />
+                  <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value as typeof filter)}
+                    className="px-2 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] text-white"
                   >
-                    <div className="absolute right-4 top-4 text-[8px] font-mono text-white/15">
-                      {new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    {audienceIconBox(b.audience)}
-                    <div className="flex-1 min-w-0 pr-12">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className={audienceBadge(b.audience)}>
-                          {b.audience === 'all' ? 'ALL STATIONS' : b.audience.toUpperCase()}
+                    <option value="all">All</option>
+                    <option value="broadcast">Broadcasts</option>
+                    <option value="direct">Direct</option>
+                    <option value="emergency">Emergency</option>
+                    <option value="unread">Unread</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar max-h-[500px]">
+            <AnimatePresence mode="popLayout">
+              {feedTab === 'notifications'
+                ? notifications.map((n, i) => (
+                    <motion.button
+                      key={n.id}
+                      type="button"
+                      onClick={() => markNotificationRead(n.id)}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className={cn(
+                        'w-full text-left p-4 rounded-2xl border transition-all flex gap-3',
+                        n.isRead ? 'bg-white/[0.02] border-white/5' : 'bg-white/[0.04] border-white/10'
+                      )}
+                    >
+                      <Bell size={18} className="text-cyan-400 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-white uppercase">{n.title}</p>
+                        <p className="text-xs text-white/60 mt-1">{n.message}</p>
+                        <p className="text-[9px] text-white/30 mt-2 font-mono">
+                          {new Date(n.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </motion.button>
+                  ))
+                : feedItems.map((c, i) => (
+                    <motion.div
+                      key={c.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all flex items-start gap-4 hover:bg-white/[0.04] group relative overflow-hidden"
+                    >
+                      <div className="absolute right-4 top-4 text-[8px] font-mono text-white/15">
+                        {new Date(c.createdAt).toLocaleString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                      <CommunicationAudienceIcon targetType={c.targetType} targetRole={c.targetRole} />
+                      <div className="flex-1 min-w-0 pr-16">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className={audienceBadgeClass(c.targetRole ?? c.targetType)}>
+                            {recipientLabel(c.targetType, c.targetRole, c.targetDepartment, c.targetUserName)}
+                          </span>
+                          <span className={deliveryStatusBadge(c.deliveryStatus)}>{c.deliveryStatus}</span>
+                          <div className={cn('flex items-center gap-1 text-[8px] font-black uppercase tracking-widest', theme.officialWaveClass)}>
+                            <Sparkles size={10} className={theme.officialWaveIcon} /> {waveLabel}
+                          </div>
+                        </div>
+                        <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">
+                          From: {c.senderName} · {c.senderRole}
+                        </p>
+                        <span className="text-xs font-black text-white tracking-wide uppercase block mb-1.5">
+                          {c.title}
                         </span>
-                        <div
-                          className={cn(
-                            'flex items-center gap-1 text-[8px] font-black uppercase tracking-widest',
-                            theme.officialWaveClass
+                        <p className="text-xs text-white/70 font-semibold leading-relaxed">{c.message}</p>
+                        <div className="flex gap-2 mt-3">
+                          {c.deliveryStatus !== 'read' && (
+                            <button
+                              type="button"
+                              onClick={() => markCommunicationRead(c.id, user?.id)}
+                              className="text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:underline"
+                            >
+                              Mark Read
+                            </button>
                           )}
-                        >
-                          <Sparkles size={10} className={theme.officialWaveIcon} /> {waveLabel}
+                          {!c.archived && (
+                            <button
+                              type="button"
+                              onClick={() => archiveCommunication(c.id)}
+                              className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white"
+                            >
+                              Archive
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <span className="text-xs font-black text-white tracking-wide uppercase block mb-1.5">
-                        {b.title}
-                      </span>
-                      <p className="text-xs text-white/70 font-semibold leading-relaxed">{b.message}</p>
-                    </div>
-                  </motion.div>
-                ))
-              : messages.map((msg, i) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all flex items-start gap-4 hover:bg-white/[0.04] group relative overflow-hidden"
-                  >
-                    <div className="absolute right-4 top-4 text-[8px] font-mono text-white/15">
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-white/10 via-transparent to-white/5 flex items-center justify-center border border-white/10 text-white flex-shrink-0">
-                      <UserCircle2 size={18} className="text-slate-200" />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-12">
-                      <div>
-                        <span className="text-xs font-black text-white lowercase tracking-wider">{msg.sender}</span>
-                        <span className="text-[9px] font-bold text-cyan-400 ml-2 uppercase tracking-widest">
-                          {msg.role}
-                        </span>
-                      </div>
-                      <p className="text-xs text-white/70 font-semibold mt-2 leading-relaxed">{msg.content}</p>
-                    </div>
-                  </motion.div>
-                ))}
-          </AnimatePresence>
+                    </motion.div>
+                  ))}
+            </AnimatePresence>
 
-          {feedMode === 'broadcast' && visibleBroadcasts.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-30 gap-3 py-24 text-center">
-              <Radio size={40} className="text-white" />
-              <p className="text-xs font-black uppercase tracking-widest">No Transmitted Waves Active</p>
-            </div>
-          )}
-
-          {feedMode === 'message' && messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-30 gap-3 py-24 text-center">
-              <MessageSquare size={40} className="text-white" />
-              <p className="text-xs font-black uppercase tracking-widest">No Stream Logs Received</p>
-            </div>
-          )}
+            {feedTab === 'notifications' && notifications.length === 0 && (
+              <EmptyState icon={Bell} label="No notifications yet" />
+            )}
+            {feedTab !== 'notifications' && feedItems.length === 0 && (
+              <EmptyState icon={feedTab === 'archive' ? Archive : Radio} label="No communications in this view" />
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+function matchesArchiveView(
+  c: { archived?: boolean; targetType: CommTargetType; targetRole?: string; targetUserId?: string; senderId?: string },
+  portalRole: PortalAudience,
+  userId?: string,
+  isAdmin?: boolean
+) {
+  if (!c.archived) return false;
+  if (isAdmin) return true;
+  if (c.senderId && userId && c.senderId === userId) return true;
+  if (c.targetType === 'all') return true;
+  if (c.targetType === 'user') return !!userId && c.targetUserId === userId;
+  if (c.targetType === 'role' && c.targetRole) {
+    const t = normalizePortalRole(c.targetRole);
+    return t === 'all' || t === portalRole;
+  }
+  return true;
+}
+
+const EmptyState: React.FC<{ icon: React.ComponentType<{ size?: number; className?: string }>; label: string }> = ({
+  icon: Icon,
+  label,
+}) => (
+  <div className="h-full flex flex-col items-center justify-center opacity-30 gap-3 py-24 text-center">
+    <Icon size={40} className="text-white" />
+    <p className="text-xs font-black uppercase tracking-widest">{label}</p>
+  </div>
+);

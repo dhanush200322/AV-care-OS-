@@ -22,7 +22,8 @@ import {
   Activity,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationUnread } from '../../hooks/useCommunicationUnread';
 
 const NAV_GROUPS = [
   {
@@ -65,8 +66,8 @@ export const DoctorSidebar: React.FC<DoctorSidebarProps> = ({
   collapsed,
   setCollapsed,
 }) => {
-  const { notifications } = useStore();
-  const unread = notifications.filter((n) => !n.read).length;
+  const { user } = useAuth();
+  const commUnread = useCommunicationUnread('doctor', user?.id);
   const [hospital, setHospital] = useState('AV Care Chennai HQ');
 
   useEffect(() => {
@@ -144,7 +145,7 @@ export const DoctorSidebar: React.FC<DoctorSidebarProps> = ({
               const active = activeTab === item.id;
               const badge =
                 item.id === 'messages'
-                  ? unread
+                  ? commUnread
                   : item.id === 'emergency'
                     ? 1
                     : 0;

@@ -1,19 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Search, Bell, Command, Siren, Sparkles, Sun, Moon, Wifi, WifiOff, UserPlus, Activity } from 'lucide-react';
+import { Search, Command, Siren, Sparkles, Sun, Moon, Wifi, WifiOff, UserPlus, Activity } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
 import { useReceptionStore } from '../../store/receptionStore';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { btnGhost, btnPrimary } from './theme';
+import { NotificationBellPanel } from '../shared/communications/NotificationBellPanel';
+import { normalizePortalRole } from '../../store/communicationStore';
 
-interface Props { onSearchClick: () => void; onAIToggle: () => void; onQuickRegister: () => void; scrolled?: boolean; }
+interface Props { onSearchClick: () => void; onAIToggle: () => void; onQuickRegister: () => void; scrolled?: boolean; onOpenCommunication?: () => void; }
 
-export const ReceptionTopNavbar: React.FC<Props> = ({ onSearchClick, onAIToggle, onQuickRegister, scrolled }) => {
+export const ReceptionTopNavbar: React.FC<Props> = ({ onSearchClick, onAIToggle, onQuickRegister, scrolled, onOpenCommunication }) => {
   const { theme, toggleTheme } = useTheme();
-  const { notifications, isEmergencyMode, toggleEmergencyMode } = useStore();
+  const { isEmergencyMode, toggleEmergencyMode } = useStore();
+  const { user } = useAuth();
   const { wsConnected } = useReceptionStore();
-  const unread = notifications.filter((n) => !n.read).length;
+  const portalRole = normalizePortalRole('receptionist') ?? 'receptionist';
   const [time, setTime] = useState(new Date());
 
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t); }, []);
@@ -32,7 +36,7 @@ export const ReceptionTopNavbar: React.FC<Props> = ({ onSearchClick, onAIToggle,
       <button type="button" onClick={onQuickRegister} className={btnPrimary}><UserPlus size={14} /><span className="hidden sm:inline">Register</span></button>
       <button type="button" onClick={toggleEmergencyMode} className={cn('p-2.5 rounded-xl border', isEmergencyMode ? 'bg-[#FF4444]/20 border-[#FF4444]/50 text-[#FF4444] animate-pulse' : 'border-white/10 text-[#89A9B0]')}><Siren size={18} /></button>
       <button type="button" onClick={onAIToggle} className={btnGhost}><Sparkles size={14} />AI</button>
-      <button type="button" className="relative p-2.5 rounded-xl border border-white/10"><Bell size={18} />{unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 rounded-full bg-[#00FFD5] text-[#071A1D] text-[9px] font-black flex items-center justify-center">{unread}</span>}</button>
+      <NotificationBellPanel portalRole={portalRole} userId={user?.id} accentClass="text-[#00FFD5]" badgeClass="bg-[#00FFD5] text-[#071A1D]" onOpenCommunication={onOpenCommunication} />
       <button type="button" onClick={toggleTheme} className={btnGhost}>{theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}</button>
       <div className="flex items-center gap-2 pl-2 border-l border-white/10">
         <div className="hidden sm:block text-right"><p className="text-xs font-bold text-white">Ananya Reddy</p><p className="text-[9px] text-[#00FFD5] flex items-center justify-end gap-1"><Activity size={10} /> On Duty</p></div>

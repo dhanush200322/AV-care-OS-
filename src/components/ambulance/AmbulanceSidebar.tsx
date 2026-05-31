@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { LayoutDashboard, MapPin, Siren, Radio, Users, Route, Wrench, HeartPulse, Network, Bell, BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Ambulance, Sparkles, MessageSquare } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationUnread } from '../../hooks/useCommunicationUnread';
 import { useAmbulanceStore } from '../../store/ambulanceStore';
 
 const NAV = [
@@ -25,6 +27,8 @@ const NAV = [
 ];
 
 export const AmbulanceSidebar: React.FC<{ activeTab: string; setActiveTab: (t: string) => void; onLogout: () => void; collapsed: boolean; setCollapsed: (v: boolean) => void }> = ({ activeTab, setActiveTab, onLogout, collapsed, setCollapsed }) => {
+  const { user } = useAuth();
+  const commUnread = useCommunicationUnread('ambulance', user?.id);
   const { alerts, requests } = useAmbulanceStore();
   const critical = alerts.filter((a) => a.severity === 'Critical' && !a.acknowledged).length;
   const pending = requests.filter((r) => r.status === 'Pending').length;
@@ -50,7 +54,14 @@ export const AmbulanceSidebar: React.FC<{ activeTab: string; setActiveTab: (t: s
             {!collapsed && <p className="px-3 mb-2 text-[9px] font-black uppercase tracking-[0.35em] text-[#B8A28F]/50">{g.label}</p>}
             {g.items.map((item) => {
               const active = activeTab === item.id;
-              const badge = item.id === 'alerts' ? critical : item.id === 'requests' ? pending : 0;
+              const badge =
+                item.id === 'messages'
+                  ? commUnread
+                  : item.id === 'alerts'
+                    ? critical
+                    : item.id === 'requests'
+                      ? pending
+                      : 0;
               return (
                 <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} title={item.label} className={cn('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 relative', active ? 'bg-[#FF7A00]/15 text-[#FFA63D] border border-[#FF7A00]/35 shadow-[0_0_16px_rgba(255,166,61,0.15)]' : 'text-[#B8A28F] hover:text-white hover:bg-white/5')}>
                   {active && <motion.div layoutId="amb-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#FFA63D] rounded-r-full" />}

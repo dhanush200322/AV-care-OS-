@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Radio, CheckCircle2, AlertCircle, Info, X, LayoutDashboard, Video, AlertTriangle, Siren, Users } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationInbox } from '../../hooks/useCommunicationInbox';
 import { useSecurityStore } from '../../store/securityStore';
 import { SecuritySidebar } from './SecuritySidebar';
 import { SecurityTopNavbar } from './SecurityTopNavbar';
@@ -20,6 +22,7 @@ import { EmergencyResponseModule } from './modules/EmergencyResponseModule';
 import { SecurityReportsModule } from './modules/SecurityReportsModule';
 import { SecuritySettingsModule } from './modules/SecuritySettingsModule';
 import { SecurityMessagesModule } from './modules/SecurityMessagesModule';
+import { CommunicationHubLayer } from '../shared/communications/CommunicationHubLayer';
 
 type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
 
@@ -39,10 +42,10 @@ export const SecurityDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout
   const [scrolled, setScrolled] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const { broadcasts, sentWishes, isEmergencyMode } = useStore();
+  const { sentWishes, isEmergencyMode } = useStore();
+  const { user } = useAuth();
+  const activeBroadcasts = useCommunicationInbox('security', user?.id);
   const { simulateRealtimeTick, alerts } = useSecurityStore();
-
-  const activeBroadcasts = broadcasts?.filter((b) => b.audience === 'all' || b.audience === 'security') || [];
   const incomingGreetings = sentWishes?.filter((w) => w.wishType === 'Dashboard' && w.dashboardSource === 'Security Dashboard') || [];
   const hasCritical = alerts.some((a) => a.severity === 'Critical' && !a.acknowledged);
 
@@ -92,7 +95,12 @@ export const SecurityDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <SecurityTopNavbar onSearchClick={() => setIsSearchOpen(true)} onAIToggle={() => setAiOpen((o) => !o)} scrolled={scrolled} />
+        <SecurityTopNavbar
+          onSearchClick={() => setIsSearchOpen(true)}
+          onAIToggle={() => setAiOpen((o) => !o)}
+          scrolled={scrolled}
+          onOpenCommunication={() => setActiveTab('messages')}
+        />
 
         {(isEmergencyMode || hasCritical) && (
           <div className="mx-4 mt-2 px-4 py-2 rounded-xl bg-[#FF4444]/20 border border-[#FF4444]/50 flex items-center gap-3 animate-pulse">
@@ -132,6 +140,7 @@ export const SecurityDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout
 
       <SecurityCommandPalette open={isSearchOpen} onClose={() => setIsSearchOpen(false)} onNavigate={setActiveTab} />
       <SecurityAIAssistant forceOpen={aiOpen} onForceOpenChange={setAiOpen} />
+      <CommunicationHubLayer accent="#FF4444" onToast={addToast} />
 
       <div className="fixed top-24 right-6 z-[250] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>

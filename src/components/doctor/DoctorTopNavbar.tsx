@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Search,
-  Bell,
   Command,
   Siren,
   Sparkles,
@@ -17,23 +16,29 @@ import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
 import { useDoctorStore } from '../../store/doctorStore';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { btnGhost, btnPrimary } from './theme';
+import { NotificationBellPanel } from '../shared/communications/NotificationBellPanel';
+import { normalizePortalRole } from '../../store/communicationStore';
 
 interface DoctorTopNavbarProps {
   onSearchClick: () => void;
   onAIToggle: () => void;
   scrolled?: boolean;
+  onOpenCommunication?: () => void;
 }
 
 export const DoctorTopNavbar: React.FC<DoctorTopNavbarProps> = ({
   onSearchClick,
   onAIToggle,
   scrolled,
+  onOpenCommunication,
 }) => {
   const { theme, toggleTheme } = useTheme();
-  const { notifications, isEmergencyMode, toggleEmergencyMode } = useStore();
+  const { isEmergencyMode, toggleEmergencyMode } = useStore();
+  const { user } = useAuth();
   const { wsConnected } = useDoctorStore();
-  const unread = notifications.filter((n) => !n.read).length;
+  const portalRole = normalizePortalRole('doctor') ?? 'doctor';
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -104,14 +109,13 @@ export const DoctorTopNavbar: React.FC<DoctorTopNavbarProps> = ({
           <span className="hidden sm:inline">AI</span>
         </button>
 
-        <button type="button" className="relative p-2.5 rounded-xl border border-white/10 hover:border-[#00D68F]/30 text-[#8AA39B] hover:text-white">
-          <Bell size={18} />
-          {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#00FFA3] text-[#071B11] text-[9px] font-black flex items-center justify-center">
-              {unread}
-            </span>
-          )}
-        </button>
+        <NotificationBellPanel
+          portalRole={portalRole}
+          userId={user?.id}
+          accentClass="text-[#00FFA3]"
+          badgeClass="bg-[#00FFA3] text-[#071B11]"
+          onOpenCommunication={onOpenCommunication}
+        />
 
         <button type="button" onClick={toggleTheme} className={btnGhost} aria-label="Toggle theme">
           {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}

@@ -5,6 +5,8 @@ import {
   BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Shield, Sparkles, Building2, MessageSquare,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationUnread } from '../../hooks/useCommunicationUnread';
 import { useSecurityStore } from '../../store/securityStore';
 
 const NAV = [
@@ -29,6 +31,8 @@ const NAV = [
 export const SecuritySidebar: React.FC<{ activeTab: string; setActiveTab: (t: string) => void; onLogout: () => void; collapsed: boolean; setCollapsed: (v: boolean) => void }> = ({
   activeTab, setActiveTab, onLogout, collapsed, setCollapsed,
 }) => {
+  const { user } = useAuth();
+  const commUnread = useCommunicationUnread('security', user?.id);
   const { alerts, incidents } = useSecurityStore();
   const criticalAlerts = alerts.filter((a) => a.severity === 'Critical' && !a.acknowledged).length;
   const activeInc = incidents.filter((i) => i.status === 'Active' || i.status === 'Investigating').length;
@@ -59,7 +63,14 @@ export const SecuritySidebar: React.FC<{ activeTab: string; setActiveTab: (t: st
             {!collapsed && <p className="px-3 mb-2 text-[9px] font-black uppercase tracking-[0.35em] text-[#7F95B2]/50">{g.label}</p>}
             {g.items.map((item) => {
               const active = activeTab === item.id;
-              const badge = item.id === 'alerts' ? criticalAlerts : item.id === 'incidents' ? activeInc : 0;
+              const badge =
+                item.id === 'messages'
+                  ? commUnread
+                  : item.id === 'alerts'
+                    ? criticalAlerts
+                    : item.id === 'incidents'
+                      ? activeInc
+                      : 0;
               return (
                 <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} title={item.label} className={cn('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 relative', active ? 'bg-[#00C2E0]/15 text-[#00E5FF] border border-[#00C2E0]/35 shadow-[0_0_16px_rgba(0,229,255,0.12)]' : 'text-[#7F95B2] hover:text-white hover:bg-white/5')}>
                   {active && <motion.div layoutId="sec-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#00E5FF] rounded-r-full shadow-[0_0_12px_#00E5FF]" />}

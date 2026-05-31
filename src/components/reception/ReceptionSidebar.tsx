@@ -6,7 +6,8 @@ import {
   LogOut, Hospital, Sparkles, Building2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationUnread } from '../../hooks/useCommunicationUnread';
 
 const NAV = [
   { label: 'Operations', items: [
@@ -30,8 +31,8 @@ const NAV = [
 interface Props { activeTab: string; setActiveTab: (t: string) => void; onLogout: () => void; collapsed: boolean; setCollapsed: (v: boolean) => void; }
 
 export const ReceptionSidebar: React.FC<Props> = ({ activeTab, setActiveTab, onLogout, collapsed, setCollapsed }) => {
-  const { notifications } = useStore();
-  const unread = notifications.filter((n) => !n.read).length;
+  const { user } = useAuth();
+  const commUnread = useCommunicationUnread('receptionist', user?.id);
   const [hospital, setHospital] = useState('AV Care Chennai HQ');
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export const ReceptionSidebar: React.FC<Props> = ({ activeTab, setActiveTab, onL
             {!collapsed && <p className="px-3 mb-2 text-[9px] font-black uppercase tracking-[0.3em] text-[#89A9B0]/60">{g.label}</p>}
             {g.items.map((item) => {
               const active = activeTab === item.id;
-              const badge = item.id === 'notifications' ? unread : 0;
+              const badge = item.id === 'messages' ? commUnread : 0;
               return (
                 <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} title={item.label} className={cn('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all relative', active ? 'bg-[#00C2A8]/15 text-[#00FFD5] border border-[#00C2A8]/30 shadow-[0_0_20px_rgba(0,255,213,0.12)]' : 'text-[#89A9B0] hover:text-white hover:bg-white/5')}>
                   {active && <motion.div layoutId="recv-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#00FFD5] rounded-r-full" />}

@@ -27,6 +27,9 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useTranslation } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationUnread } from '../../hooks/useCommunicationUnread';
+import { normalizePortalRole } from '../../store/communicationStore';
 
 interface SidebarProps {
   activeTab: string;
@@ -67,6 +70,9 @@ const MENU_GROUPS = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) => {
   const { t } = useTranslation();
+  const { profile, user } = useAuth();
+  const portalRole = profile?.role ? normalizePortalRole(profile.role) ?? 'admin' : 'admin';
+  const commUnread = useCommunicationUnread(portalRole, user?.id);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth < 1024;
@@ -155,6 +161,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
                   {!isCollapsed && (
                     <span className="flex-1 text-left text-[13px] font-semibold tracking-wide whitespace-nowrap">
                        {translatedLabel}
+                    </span>
+                  )}
+                  {item.id === 'messages' && commUnread > 0 && (
+                    <span className="min-w-[18px] h-[18px] rounded-full bg-purple-500 text-[9px] font-black text-white flex items-center justify-center">
+                      {commUnread > 9 ? '9+' : commUnread}
                     </span>
                   )}
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-10 pointer-events-none bg-gradient-to-r from-purple-500 to-transparent" />

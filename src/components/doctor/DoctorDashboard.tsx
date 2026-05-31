@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Radio, CheckCircle2, AlertCircle, Info, X, LayoutDashboard, Calendar, Users, Brain, Siren } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCommunicationInbox } from '../../hooks/useCommunicationInbox';
+import { CommunicationHubLayer } from '../shared/communications/CommunicationHubLayer';
 import { useDoctorStore } from '../../store/doctorStore';
 import { DoctorSidebar } from './DoctorSidebar';
 import { DoctorTopNavbar } from './DoctorTopNavbar';
@@ -40,10 +43,10 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
   const [scrolled, setScrolled] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const { broadcasts, sentWishes, isEmergencyMode } = useStore();
+  const { sentWishes, isEmergencyMode } = useStore();
+  const { user } = useAuth();
+  const activeBroadcasts = useCommunicationInbox('doctor', user?.id);
   const { simulateRealtimeTick } = useDoctorStore();
-
-  const activeBroadcasts = broadcasts?.filter((b) => b.audience === 'all' || b.audience === 'doctor') || [];
   const incomingGreetings =
     sentWishes?.filter((w) => w.wishType === 'Dashboard' && w.dashboardSource === 'Doctor Dashboard') || [];
 
@@ -130,6 +133,7 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
           onSearchClick={() => setIsSearchOpen(true)}
           onAIToggle={() => setAiOpen((o) => !o)}
           scrolled={scrolled}
+          onOpenCommunication={() => setActiveTab('messages')}
         />
 
         <main className="flex-1 overflow-y-auto no-scrollbar px-4 pb-24 lg:pb-8">
@@ -213,6 +217,7 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
 
       <DoctorCommandPalette open={isSearchOpen} onClose={() => setIsSearchOpen(false)} onNavigate={setActiveTab} />
       <DoctorAIAssistant forceOpen={aiOpen} onForceOpenChange={setAiOpen} />
+      <CommunicationHubLayer accent="#FF4444" onToast={addToast} />
 
       <div className="fixed top-24 right-6 z-[250] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>

@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
-  Bell, 
   User, 
   Settings, 
   LogOut, 
@@ -10,8 +9,6 @@ import {
   ChevronDown,
   Globe,
   Sparkles,
-  Info,
-  AlertCircle,
   Siren,
   Hospital,
   Plus,
@@ -24,21 +21,24 @@ import { useStore } from '../../store/useStore';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { NotificationBellPanel } from '../shared/communications/NotificationBellPanel';
+import { normalizePortalRole } from '../../store/communicationStore';
 
 interface TopNavbarProps {
   onLogout: () => void;
   onSearchClick: () => void;
+  onOpenCommunication?: () => void;
 }
 
-export const TopNavbar: React.FC<TopNavbarProps> = ({ onLogout, onSearchClick }) => {
+export const TopNavbar: React.FC<TopNavbarProps> = ({ onLogout, onSearchClick, onOpenCommunication }) => {
   const { theme, toggleTheme } = useTheme();
-  const { profile } = useAuth();
-  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const { profile, user } = useAuth();
+  const portalRole = profile?.role ? normalizePortalRole(profile.role) ?? 'admin' : 'admin';
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { notifications, clearAllNotifications, markNotificationAsRead, isEmergencyMode, toggleEmergencyMode, addNotification } = useStore();
+  const { isEmergencyMode, toggleEmergencyMode, addNotification } = useStore();
   const { currentLanguage, setLanguage, languages, t } = useTranslation();
 
   const [selectedBranch, setSelectedBranch] = useState(() => {
@@ -52,8 +52,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onLogout, onSearchClick })
 
   const branchDropdownRef = useRef<HTMLDivElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -289,81 +287,13 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onLogout, onSearchClick })
            </span>
         </button>
 
-        {/* Notifications */}
-        <div className="relative">
-          <button 
-            onClick={() => setIsNoteOpen(!isNoteOpen)}
-            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-white/20 transition-all relative group"
-          >
-            <Bell size={18} className="group-hover:rotate-12 transition-transform" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full border-2 border-[#050816] text-[8px] font-black flex items-center justify-center text-white">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          
-          <AnimatePresence>
-            {isNoteOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute right-0 mt-4 w-80 rounded-2xl bg-slate-900 border border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] p-4 backdrop-blur-3xl overflow-hidden z-50"
-              >
-                <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
-                  <h3 className="text-xs font-black tracking-widest uppercase text-white/40">{t('Communications')}</h3>
-                  <span 
-                    onClick={clearAllNotifications}
-                    className="text-[10px] text-cyan-400 font-bold hover:underline cursor-pointer"
-                  >
-                    {t('Clear All')}
-                  </span>
-                </div>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto no-scrollbar">
-                  {notifications.length > 0 ? notifications.map((notif) => (
-                    <div 
-                      key={notif.id} 
-                      onClick={() => markNotificationAsRead(notif.id)}
-                      className={cn(
-                        "flex gap-3 p-2.5 rounded-xl transition-colors cursor-pointer group relative border border-transparent",
-                        !notif.read ? "bg-white/[0.03] border-white/5" : "hover:bg-white/[0.02]"
-                      )}
-                    >
-                      {!notif.read && <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />}
-                      <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                        notif.type === 'emergency' ? 'bg-red-500/20 text-red-500 border border-red-500/20' : 
-                        notif.type === 'broadcast' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' :
-                        'bg-blue-500/20 text-blue-400 border border-blue-500/20'
-                      )}>
-                        {notif.type === 'emergency' ? <AlertCircle size={14} /> : 
-                         notif.type === 'broadcast' ? <Sparkles size={14} /> : <Info size={14} />}
-                      </div>
-                      <div className="flex-1 pr-4">
-                        <p className={cn(
-                          "text-[11px] leading-relaxed mb-1",
-                          notif.read ? "text-slate-400" : "text-white font-medium"
-                        )}>
-                          {notif.message}
-                        </p>
-                        <p className="text-[9px] font-bold tracking-widest uppercase text-slate-500">{new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="text-center py-8 opacity-40">
-                      <Bell size={24} className="mx-auto mb-2 text-white/20" />
-                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50">{t('System Nominal')}</p>
-                    </div>
-                  )}
-                </div>
-                <button className="w-full mt-4 py-2.5 rounded-xl bg-purple-500/10 text-purple-400 text-[9px] font-black tracking-[0.2em] uppercase hover:bg-purple-500/20 transition-colors">
-                  {t('View System Logs')}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <NotificationBellPanel
+          portalRole={portalRole}
+          userId={user?.id}
+          accentClass="text-purple-400"
+          badgeClass="bg-purple-500"
+          onOpenCommunication={onOpenCommunication}
+        />
 
         {/* Premium Dark/Light Theme Toggle */}
         <button
