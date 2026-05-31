@@ -1,0 +1,2 @@
+-- Copy ALL of migrations/002_fix_signup_database_error.sql into Supabase SQL Editor and Run.
+-- File: AV-care-OS-/supabase/migrations/002_fix_signup_database_error.sql

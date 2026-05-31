@@ -1,32 +1,34 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { RoleId } from '../types';
+import { getDashboardPathForRole } from '../lib/authRoutes';
+import { normalizePortalRole } from '../lib/authService';
 
 interface ProtectedRouteProps {
   allowedRoles: RoleId[];
   children: React.ReactNode;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  allowedRoles, 
-  children 
-}) => {
-  const { profile, loading, session, signOut } = useAuth();
+function normalizeRoleForCompare(role: string): string {
+  const normalized = normalizePortalRole(role);
+  return normalized ?? role.trim().toLowerCase();
+}
+
+function roleFromSession(session: { user: { user_metadata?: Record<string, unknown>; email?: string } }): string | null {
+  const meta = session.user.user_metadata ?? {};
+  const raw = String(meta.active_role ?? meta.role ?? '');
+  return normalizePortalRole(raw);
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
+  const { profile, initializing, session } = useAuth();
   const location = useLocation();
 
-  const userRoleNorm = profile?.role === 'receptionist' ? 'reception' : profile?.role; 
-  const allowedRolesNorm = allowedRoles.map(r => r === 'receptionist' ? 'reception' : r); 
-  const hasMismatch = profile && !allowedRolesNorm.includes(userRoleNorm as any);
+  const portalSegment = location.pathname.split('/')[1] || 'admin';
+  const loginPath = `/${portalSegment === 'reception' ? 'receptionist' : portalSegment}/login`;
 
-  useEffect(() => {
-    if (hasMismatch) {
-      console.warn(`STRICT RBAC PROTECTION: signed-in user role is "${profile?.role}", which is not authorized for "${location.pathname}". Logging out.`);
-      signOut();
-    }
-  }, [hasMismatch, profile, signOut, location.pathname]);
-
-  if (loading) {
+  if (initializing) {
     return (
       <div className="min-h-screen w-full bg-[#050816] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
@@ -35,17 +37,27 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!session) {
-    const pathParts = location.pathname.split('/');
-    const attemptedSection = pathParts[1] || 'admin';
-    const loginPath = `/${attemptedSection === 'receptionist' ? 'reception' : attemptedSection}/login`;
     return <Navigate to={loginPath} replace />;
   }
 
-  if (hasMismatch) {
-    const pathParts = location.pathname.split('/');
-    const attemptedSection = pathParts[1] || 'admin';
-    const loginPath = `/${attemptedSection === 'receptionist' ? 'reception' : attemptedSection}/login`;
-    return <Navigate to={`${loginPath}?error=${encodeURIComponent("Unauthorized access for this role.")}`} replace />;
+  const effectiveRole =
+    (profile && normalizeRoleForCompare(profile.role)) ||
+    roleFromSession(session) ||
+    null;
+
+  if (!effectiveRole) {
+    return <Navigate to={loginPath} replace />;
+  }
+
+  const allowed = allowedRoles.map(normalizeRoleForCompare);
+  const hasAccess = allowed.includes(effectiveRole);
+
+  if (!hasAccess) {
+    const correctDashboard = getDashboardPathForRole(effectiveRole);
+    if (correctDashboard) {
+      return <Navigate to={correctDashboard} replace />;
+    }
+    return <Navigate to={`${loginPath}?error=${encodeURIComponent('Unauthorized access for this role.')}`} replace />;
   }
 
   return <>{children}</>;

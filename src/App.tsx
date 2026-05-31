@@ -25,30 +25,13 @@ function AppContent() {
   const [selectedRole, setSelectedRole] = React.useState<Role>(ROLES[1]);
   const [hoveredRole, setHoveredRole] = React.useState<Role | null>(null);
   const [rememberRole, setRememberRole] = React.useState(false);
-  const { profile, loading, signOut } = useAuth();
+  const { initializing, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  React.useEffect(() => {
-    if (!loading && profile) {
-       const currentPath = window.location.pathname;
-       if (currentPath === '/' || currentPath === '/auth' || currentPath.endsWith('/login')) {
-          // Special cases for URL mapped roles
-          let targetPath = `/${profile.role}/dashboard`;
-          if (profile.role === 'patient') {
-             targetPath = '/user/dashboard';
-          } else if (profile.role === 'receptionist') {
-             targetPath = '/reception/dashboard';
-          }
-          
-          navigate(targetPath, { replace: true });
-       }
-    }
-  }, [profile, loading, navigate]);
-
   const backgroundRole = hoveredRole || selectedRole;
 
-  if (loading) {
+  if (initializing) {
     return (
       <div className="min-h-screen w-full bg-[#050816] flex items-center justify-center">
         <motion.div
@@ -84,7 +67,10 @@ function AppContent() {
                   <span className={`text-xs font-semibold tracking-widest uppercase transition-colors ${rememberRole ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`}>Remember selected role</span>
                 </div>
                 <div onClick={() => {
-                  const rolePath = selectedRole.id === 'receptionist' || selectedRole.id === 'reception' ? 'reception' : selectedRole.id;
+                  const rolePath =
+                    selectedRole.id === 'receptionist' || selectedRole.id === 'reception'
+                      ? 'receptionist'
+                      : selectedRole.id;
                   navigate(`/${rolePath}/login`);
                 }}>
                   <EnterButton selectedRole={selectedRole} />
@@ -94,41 +80,76 @@ function AppContent() {
           } />
 
           <Route path="/auth" element={
-            <Navigate to={`/${selectedRole.id === 'receptionist' ? 'reception' : selectedRole.id}/login${window.location.search}`} replace />
+            <Navigate
+              to={`/${selectedRole.id === 'receptionist' || selectedRole.id === 'reception' ? 'receptionist' : selectedRole.id}/login${window.location.search}`}
+              replace
+            />
           } />
 
           <Route path="/admin/login" element={
             <div className="w-full h-screen">
               <Background selectedRole={ROLES.find(r => r.id === 'admin')!} isPreview={false} />
-              <LoginView role={ROLES.find(r => r.id === 'admin')!} onBack={() => navigate('/')} />
+              <LoginView role={ROLES.find(r => r.id === 'admin')!} onBack={() => navigate('/')} initialMode="login" />
+            </div>
+          } />
+          <Route path="/admin/register" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'admin')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'admin')!} onBack={() => navigate('/')} initialMode="register" />
             </div>
           } />
 
           <Route path="/doctor/login" element={
             <div className="w-full h-screen">
               <Background selectedRole={ROLES.find(r => r.id === 'doctor')!} isPreview={false} />
-              <LoginView role={ROLES.find(r => r.id === 'doctor')!} onBack={() => navigate('/')} />
+              <LoginView role={ROLES.find(r => r.id === 'doctor')!} onBack={() => navigate('/')} initialMode="login" />
+            </div>
+          } />
+          <Route path="/doctor/register" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'doctor')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'doctor')!} onBack={() => navigate('/')} initialMode="register" />
             </div>
           } />
 
-          <Route path="/reception/login" element={
+          <Route path="/receptionist/login" element={
             <div className="w-full h-screen">
               <Background selectedRole={ROLES.find(r => r.id === 'receptionist')!} isPreview={false} />
-              <LoginView role={ROLES.find(r => r.id === 'receptionist')!} onBack={() => navigate('/')} />
+              <LoginView role={ROLES.find(r => r.id === 'receptionist')!} onBack={() => navigate('/')} initialMode="login" />
             </div>
           } />
+          <Route path="/receptionist/register" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'receptionist')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'receptionist')!} onBack={() => navigate('/')} initialMode="register" />
+            </div>
+          } />
+          <Route path="/reception/login" element={<Navigate to="/receptionist/login" replace />} />
+          <Route path="/reception/register" element={<Navigate to="/receptionist/register" replace />} />
 
           <Route path="/security/login" element={
             <div className="w-full h-screen">
               <Background selectedRole={ROLES.find(r => r.id === 'security')!} isPreview={false} />
-              <LoginView role={ROLES.find(r => r.id === 'security')!} onBack={() => navigate('/')} />
+              <LoginView role={ROLES.find(r => r.id === 'security')!} onBack={() => navigate('/')} initialMode="login" />
+            </div>
+          } />
+          <Route path="/security/register" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'security')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'security')!} onBack={() => navigate('/')} initialMode="register" />
             </div>
           } />
 
           <Route path="/ambulance/login" element={
             <div className="w-full h-screen">
               <Background selectedRole={ROLES.find(r => r.id === 'ambulance')!} isPreview={false} />
-              <LoginView role={ROLES.find(r => r.id === 'ambulance')!} onBack={() => navigate('/')} />
+              <LoginView role={ROLES.find(r => r.id === 'ambulance')!} onBack={() => navigate('/')} initialMode="login" />
+            </div>
+          } />
+          <Route path="/ambulance/register" element={
+            <div className="w-full h-screen">
+              <Background selectedRole={ROLES.find(r => r.id === 'ambulance')!} isPreview={false} />
+              <LoginView role={ROLES.find(r => r.id === 'ambulance')!} onBack={() => navigate('/')} initialMode="register" />
             </div>
           } />
 
@@ -147,11 +168,12 @@ function AppContent() {
             </ProtectedRoute>
           } />
 
-          <Route path="/reception/dashboard" element={
+          <Route path="/receptionist/dashboard" element={
             <ProtectedRoute allowedRoles={['receptionist']}>
                <ReceptionDashboard onLogout={signOut} />
             </ProtectedRoute>
           } />
+          <Route path="/reception/dashboard" element={<Navigate to="/receptionist/dashboard" replace />} />
 
           <Route path="/security/dashboard" element={
             <ProtectedRoute allowedRoles={['security']}>

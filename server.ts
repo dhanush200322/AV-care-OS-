@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { handleAuthRegister } from "./server/authRegister";
 
 dotenv.config();
 
@@ -23,6 +24,8 @@ async function startServer() {
       }
     }
   }) : null;
+
+  app.post("/api/auth/register", handleAuthRegister);
 
   // Real server-side chat endpoint using Gemini 3.5 Flash
   app.post("/api/chat", async (req, res) => {
