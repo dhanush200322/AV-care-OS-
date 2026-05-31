@@ -43,7 +43,7 @@ const NAV_GROUPS = [
     label: 'Operations',
     items: [
       { id: 'emergency', label: 'Emergency Alerts', icon: Siren, badge: true },
-      { id: 'messages', label: 'Messages', icon: MessageSquare },
+      { id: 'messages', label: 'Communication', icon: MessageSquare },
       { id: 'analytics', label: 'Analytics', icon: BarChart3 },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],

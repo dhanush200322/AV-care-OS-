@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
   LayoutDashboard, Users, DoorOpen, Video, AlertTriangle, Lock, Car, Bell, Siren,
-  BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Shield, Sparkles, Building2,
+  BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Shield, Sparkles, Building2, MessageSquare,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useSecurityStore } from '../../store/securityStore';
@@ -20,6 +20,7 @@ const NAV = [
   { label: 'Response', items: [
     { id: 'alerts', label: 'Security Alerts', icon: Bell, badge: true },
     { id: 'emergency', label: 'Emergency Response', icon: Siren },
+    { id: 'messages', label: 'Communication', icon: MessageSquare },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]},

@@ -21,7 +21,7 @@ const NAV = [
   { label: 'Support', items: [
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'helpdesk', label: 'Help Desk', icon: Headphones },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'messages', label: 'Communication', icon: MessageSquare },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]},

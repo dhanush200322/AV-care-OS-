@@ -19,6 +19,7 @@ import { SecurityAlertsModule } from './modules/SecurityAlertsModule';
 import { EmergencyResponseModule } from './modules/EmergencyResponseModule';
 import { SecurityReportsModule } from './modules/SecurityReportsModule';
 import { SecuritySettingsModule } from './modules/SecuritySettingsModule';
+import { SecurityMessagesModule } from './modules/SecurityMessagesModule';
 
 type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
 
@@ -77,6 +78,7 @@ export const SecurityDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout
       case 'parking': return <ParkingManagementModule {...toastProps} />;
       case 'alerts': return <SecurityAlertsModule {...toastProps} />;
       case 'emergency': return <EmergencyResponseModule {...toastProps} />;
+      case 'messages': return <SecurityMessagesModule {...toastProps} />;
       case 'reports': return <SecurityReportsModule />;
       case 'settings': return <SecuritySettingsModule {...toastProps} />;
       default: return <SecurityDashboardOverview />;
