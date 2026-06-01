@@ -20,7 +20,9 @@ import { WaitingHallModule } from './modules/WaitingHallModule';
 import { NotificationCenterModule } from './modules/NotificationCenterModule';
 import { HelpDeskModule } from './modules/HelpDeskModule';
 import { ReceptionMessagesModule } from './modules/ReceptionMessagesModule';
+import { ReceptionBirthdayModule } from './modules/ReceptionBirthdayModule';
 import { ReceptionReportsModule } from './modules/ReceptionReportsModule';
+import { ReceptionSettingsModule } from './modules/ReceptionSettingsModule';
 import { CommunicationHubLayer } from '../shared/communications/CommunicationHubLayer';
 
 type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
@@ -94,6 +96,8 @@ export const ReceptionDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
         return <HelpDeskModule {...toastProps} />;
       case 'messages':
         return <ReceptionMessagesModule {...toastProps} />;
+      case 'birthdays':
+        return <ReceptionBirthdayModule />;
       case 'reports':
         return <ReceptionReportsModule />;
       case 'settings':

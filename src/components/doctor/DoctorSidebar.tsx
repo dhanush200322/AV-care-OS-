@@ -18,6 +18,7 @@ import {
   ChevronRight,
   LogOut,
   Hospital,
+  Cake,
   Sparkles,
   Activity,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ const NAV_GROUPS = [
     items: [
       { id: 'emergency', label: 'Emergency Alerts', icon: Siren, badge: true },
       { id: 'messages', label: 'Communication', icon: MessageSquare },
+      { id: 'birthdays', label: 'Birthday System', icon: Cake },
       { id: 'analytics', label: 'Analytics', icon: BarChart3 },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],

@@ -34,15 +34,78 @@ import { useStore, BirthdayPerson, BirthdayTemplate, SentWish, WishingDashboard 
 import { cn } from '../../lib/utils';
 import { printBirthdayList } from '../../lib/printHelper';
 
-// Banner styling themes for hospital branding options
-const BANNER_THEMES = [
-  { id: 'banner-purple', name: 'Ambient Cosmos (Purple)', class: 'bg-gradient-to-r from-purple-700 via-pink-600 to-indigo-800', preview: '🟣' },
-  { id: 'banner-emerald', name: 'Clinical Healing (Emerald)', class: 'bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-500', preview: '🟢' },
-  { id: 'banner-cyan', name: 'Cyber Oxygen (Cyan)', class: 'bg-gradient-to-r from-cyan-600 via-sky-600 to-indigo-600', preview: '🔵' },
-  { id: 'banner-amber', name: 'Golden Recovery (Amber)', class: 'bg-gradient-to-r from-amber-600 via-orange-500 to-amber-800', preview: '🟡' },
+export type BirthdayDashboardTheme = 'admin' | 'doctor' | 'reception' | 'security' | 'ambulance';
+
+interface BirthdayModuleProps {
+  dashboardTheme: BirthdayDashboardTheme;
+}
+
+const DASHBOARD_BIRTHDAY_THEMES: Record<BirthdayDashboardTheme, {
+  label: string;
+  color: string;
+  bannerClass: string;
+  accentText: string;
+  accentBorder: string;
+  accentBg: string;
+  preview: string;
+}> = {
+  admin: {
+    label: 'Admin Dashboard',
+    color: '#A855F7',
+    bannerClass: 'bg-gradient-to-r from-purple-700 via-pink-600 to-indigo-800',
+    accentText: 'text-purple-400',
+    accentBorder: 'border-purple-500',
+    accentBg: 'bg-purple-500/10',
+    preview: 'AD'
+  },
+  doctor: {
+    label: 'Doctor Dashboard',
+    color: '#22C55E',
+    bannerClass: 'bg-gradient-to-r from-green-700 via-emerald-600 to-lime-500',
+    accentText: 'text-green-400',
+    accentBorder: 'border-green-500',
+    accentBg: 'bg-green-500/10',
+    preview: 'DR'
+  },
+  reception: {
+    label: 'Reception Dashboard',
+    color: '#14B8A6',
+    bannerClass: 'bg-gradient-to-r from-teal-700 via-cyan-600 to-emerald-500',
+    accentText: 'text-teal-400',
+    accentBorder: 'border-teal-500',
+    accentBg: 'bg-teal-500/10',
+    preview: 'RC'
+  },
+  security: {
+    label: 'Security Dashboard',
+    color: '#EF4444',
+    bannerClass: 'bg-gradient-to-r from-red-800 via-rose-600 to-orange-600',
+    accentText: 'text-red-400',
+    accentBorder: 'border-red-500',
+    accentBg: 'bg-red-500/10',
+    preview: 'SC'
+  },
+  ambulance: {
+    label: 'Ambulance Dashboard',
+    color: '#F59E0B',
+    bannerClass: 'bg-gradient-to-r from-amber-700 via-orange-500 to-yellow-500',
+    accentText: 'text-amber-400',
+    accentBorder: 'border-amber-500',
+    accentBg: 'bg-amber-500/10',
+    preview: 'AM'
+  }
+};
+
+const DASHBOARD_TARGETS: { id: string; key: BirthdayDashboardTheme; label: string; icon: string }[] = [
+  { id: 'Admin Dashboard', key: 'admin', label: 'Admin', icon: 'AD' },
+  { id: 'Doctor Dashboard', key: 'doctor', label: 'Doctor', icon: 'DR' },
+  { id: 'Reception Dashboard', key: 'reception', label: 'Reception', icon: 'RC' },
+  { id: 'Security Dashboard', key: 'security', label: 'Security', icon: 'SC' },
+  { id: 'Ambulance Dashboard', key: 'ambulance', label: 'Ambulance', icon: 'AM' }
 ];
 
-export const BirthdayModule: React.FC = () => {
+export const BirthdayModule: React.FC<BirthdayModuleProps> = ({ dashboardTheme }) => {
+  const dashboardBirthdayTheme = DASHBOARD_BIRTHDAY_THEMES[dashboardTheme];
   const { 
     birthdaySettings, 
     birthdayTemplates, 
@@ -64,7 +127,7 @@ export const BirthdayModule: React.FC = () => {
   // Custom states for manual sending action modal
   const [selectedRecipient, setSelectedRecipient] = useState<BirthdayPerson | null>(null);
   const [sendingChannel, setSendingChannel] = useState<'SMS' | 'Email' | 'WhatsApp' | 'Dashboard'>('WhatsApp');
-  const [selectedDashboardBoard, setSelectedDashboardBoard] = useState<string>('Doctor Dashboard');
+  const [selectedDashboardBoard, setSelectedDashboardBoard] = useState<string>(dashboardBirthdayTheme.label);
   const [senderSignatureName, setSenderSignatureName] = useState<string>('Clinical Admin Head');
   const [customizedMessageText, setCustomizedMessageText] = useState('');
   const [isSendingSimulated, setIsSendingSimulated] = useState(false);
@@ -136,6 +199,7 @@ export const BirthdayModule: React.FC = () => {
     const matchedTemplate = birthdayTemplates.find(t => t.type === birthdaySettings.wishType) || birthdayTemplates[0];
     setCustomizedMessageText(resolveTemplate(matchedTemplate.content, person.name));
     setSendingChannel(birthdaySettings.wishType);
+    setSelectedDashboardBoard(dashboardBirthdayTheme.label);
     setSimulationComplete(false);
     setIsSendingSimulated(false);
   };
@@ -144,6 +208,8 @@ export const BirthdayModule: React.FC = () => {
   const handleDispatchWish = () => {
     if (!selectedRecipient) return;
     setIsSendingSimulated(true);
+    const targetDashboard = DASHBOARD_TARGETS.find((target) => target.id === selectedDashboardBoard) || DASHBOARD_TARGETS[0];
+    const targetTheme = DASHBOARD_BIRTHDAY_THEMES[targetDashboard.key];
 
     setTimeout(() => {
       // Add wish to Zustand Store
@@ -154,6 +220,10 @@ export const BirthdayModule: React.FC = () => {
         content: customizedMessageText,
         senderName: senderSignatureName,
         dashboardSource: selectedDashboardBoard,
+        sourceDashboardKey: dashboardTheme,
+        sourceThemeColour: dashboardBirthdayTheme.color,
+        targetDashboardKey: targetDashboard.key,
+        targetThemeColour: targetTheme.color,
         timeSent: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
       setIsSendingSimulated(false);
@@ -206,11 +276,8 @@ export const BirthdayModule: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // Get active banner background implementation
-  const activeThemeClass = useMemo(() => {
-    const t = BANNER_THEMES.find(theme => theme.id === birthdaySettings.selectedBanner);
-    return t ? t.class : BANNER_THEMES[0].class;
-  }, [birthdaySettings.selectedBanner]);
+  // Birthday banners are mandatory and locked to the active dashboard theme.
+  const activeThemeClass = dashboardBirthdayTheme.bannerClass;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -436,7 +503,7 @@ export const BirthdayModule: React.FC = () => {
               {/* LIST GRID OF BIRTHDAYS */}
               <div className="p-6 bg-[#090b1c]/70 border border-white/5 rounded-3xl">
                 <h3 className="text-sm font-black tracking-widest text-white uppercase mb-4 flex items-center gap-2">
-                  <CalendarDays size={16} className="text-purple-400" />
+                  <CalendarDays size={16} className={dashboardBirthdayTheme.accentText} />
                   <span>Interactive Birthday Records Profile ({filteredPeople.length})</span>
                 </h3>
 
@@ -839,37 +906,39 @@ export const BirthdayModule: React.FC = () => {
 
               </div>
 
-              {/* CARD PREVIEW / BANNER ASSET SELECTION */}
+              {/* CARD PREVIEW / LOCKED DASHBOARD BANNER THEME */}
               <div className="space-y-6">
                 
-                {/* BRAND BANNERS ASSETS CHANGER */}
+                {/* MANDATORY DASHBOARD THEME */}
                 <div className="p-6 bg-[#090b1c]/90 border border-white/5 rounded-3xl space-y-4">
                   <h3 className="text-xs font-black tracking-widest text-white uppercase flex items-center gap-2">
-                    <Image size={14} className="text-amber-400" />
-                    <span>Upload & Custom Digital Banner Presets</span>
+                    <Image size={14} className={dashboardBirthdayTheme.accentText} />
+                    <span>Mandatory Dashboard Theme</span>
                   </h3>
-                  <p className="text-[10px] text-white/40 leading-relaxed">Choose an ambient background skin styling for push banners and dashboard visual notification layouts.</p>
+                  <p className="text-[10px] text-white/40 leading-relaxed">Birthday banners use only the current dashboard theme colour.</p>
 
                   <div className="space-y-2 pt-2">
-                    {BANNER_THEMES.map(theme => {
-                      const isSelected = birthdaySettings.selectedBanner === theme.id;
-                      return (
-                        <button
-                          key={theme.id}
-                          onClick={() => updateBirthdaySettings({ selectedBanner: theme.id })}
-                          className={cn(
-                            "w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all",
-                            isSelected ? "border-purple-500 bg-purple-500/5 text-white" : "border-white/5 text-slate-400 bg-slate-950/40 hover:text-white"
-                          )}
+                    <div
+                      className={cn(
+                        "w-full p-3 rounded-xl border flex items-center justify-between text-left text-white",
+                        dashboardBirthdayTheme.accentBorder,
+                        dashboardBirthdayTheme.accentBg
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className="h-8 w-8 rounded-lg border border-white/10 grid place-items-center text-[10px] font-black"
+                          style={{ backgroundColor: dashboardBirthdayTheme.color }}
                         >
-                          <div className="flex items-center gap-3">
-                            <span className="text-lg">{theme.preview}</span>
-                            <span className="text-xs font-black uppercase tracking-wider">{theme.name}</span>
-                          </div>
-                          {isSelected && <Check size={14} className="text-purple-400" />}
-                        </button>
-                      );
-                    })}
+                          {dashboardBirthdayTheme.preview}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block text-xs font-black uppercase tracking-wider truncate">{dashboardBirthdayTheme.label}</span>
+                          <span className="block text-[9px] font-bold uppercase tracking-widest text-white/40">{dashboardBirthdayTheme.color}</span>
+                        </div>
+                      </div>
+                      <Check size={14} className={dashboardBirthdayTheme.accentText} />
+                    </div>
                   </div>
 
                 </div>
@@ -1091,7 +1160,9 @@ export const BirthdayModule: React.FC = () => {
                                onClick={() => setSelectedDashboardBoard(board.id)}
                                className={cn(
                                  "py-2 px-1 rounded-xl border text-[9px] font-black uppercase tracking-wider flex flex-col items-center justify-center gap-1 transition-all",
-                                 isBoardActive ? "border-purple-500 bg-purple-500/10 text-white" : "border-white/5 text-slate-400 hover:text-white hover:bg-white/5"
+                                  isBoardActive
+                                    ? `${dashboardBirthdayTheme.accentBorder} ${dashboardBirthdayTheme.accentBg} text-white`
+                                    : "border-white/5 text-slate-400 hover:text-white hover:bg-white/5"
                                )}
                              >
                                <span className="text-sm">{board.icon}</span>

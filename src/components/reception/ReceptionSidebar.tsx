@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, UserPlus, Calendar, ListOrdered, Radio, CreditCard, Armchair,
   Bell, Headphones, MessageSquare, BarChart3, Settings, ChevronLeft, ChevronRight,
-  LogOut, Hospital, Sparkles, Building2,
+  LogOut, Hospital, Sparkles, Building2, Cake,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +23,7 @@ const NAV = [
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'helpdesk', label: 'Help Desk', icon: Headphones },
     { id: 'messages', label: 'Communication', icon: MessageSquare },
+    { id: 'birthdays', label: 'Birthday System', icon: Cake },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]},

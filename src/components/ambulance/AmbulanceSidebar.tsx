@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { LayoutDashboard, MapPin, Siren, Radio, Users, Route, Wrench, HeartPulse, Network, Bell, BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Ambulance, Sparkles, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, MapPin, Siren, Radio, Users, Route, Wrench, HeartPulse, Network, Bell, BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Ambulance, Sparkles, MessageSquare, Cake } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCommunicationUnread } from '../../hooks/useCommunicationUnread';
@@ -21,6 +21,7 @@ const NAV = [
     { id: 'coordination', label: 'Coordination', icon: Network },
     { id: 'alerts', label: 'Emergency Alerts', icon: Bell, badge: true },
     { id: 'messages', label: 'Communication', icon: MessageSquare },
+    { id: 'birthdays', label: 'Birthday System', icon: Cake },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]},

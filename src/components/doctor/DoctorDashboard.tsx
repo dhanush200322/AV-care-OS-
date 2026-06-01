@@ -22,6 +22,7 @@ import { DoctorLabReportsModule } from './modules/DoctorLabReportsModule';
 import { TelemedicineModule } from './modules/TelemedicineModule';
 import { EmergencyModule } from './modules/EmergencyModule';
 import { DoctorMessagesModule } from './modules/DoctorMessagesModule';
+import { DoctorBirthdayModule } from './modules/DoctorBirthdayModule';
 import { DoctorAnalyticsModule } from './modules/DoctorAnalyticsModule';
 import { DoctorSettingsModule } from './modules/DoctorSettingsModule';
 
@@ -104,6 +105,8 @@ export const DoctorDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }
         return <EmergencyModule {...toastProps} />;
       case 'messages':
         return <DoctorMessagesModule {...toastProps} />;
+      case 'birthdays':
+        return <DoctorBirthdayModule />;
       case 'analytics':
         return <DoctorAnalyticsModule />;
       case 'settings':

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
   LayoutDashboard, Users, DoorOpen, Video, AlertTriangle, Lock, Car, Bell, Siren,
-  BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Shield, Sparkles, Building2, MessageSquare,
+  BarChart3, Settings, ChevronLeft, ChevronRight, LogOut, Shield, Sparkles, Building2, MessageSquare, Cake,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +23,7 @@ const NAV = [
     { id: 'alerts', label: 'Security Alerts', icon: Bell, badge: true },
     { id: 'emergency', label: 'Emergency Response', icon: Siren },
     { id: 'messages', label: 'Communication', icon: MessageSquare },
+    { id: 'birthdays', label: 'Birthday System', icon: Cake },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]},

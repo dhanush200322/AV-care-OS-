@@ -48,7 +48,8 @@ import {
   Calendar,
   MessageSquare,
   Siren,
-  Users
+  Users,
+  Gift
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useStore } from '../../store/useStore';
@@ -87,8 +88,12 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
     selectedPatient,
     setSelectedPatient,
     isPatientEditModalOpen,
-    setIsPatientEditModalOpen
+    setIsPatientEditModalOpen,
+    sentWishes
   } = useStore();
+
+  const incomingGreetings =
+    sentWishes?.filter((w) => w.wishType === 'Dashboard' && w.dashboardSource === 'Admin Dashboard') || [];
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -159,7 +164,7 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
       case 'messages':
         return <MessagesModule onToast={addToast} />;
       case 'birthdays':
-        return <BirthdayModule />;
+        return <BirthdayModule dashboardTheme="admin" />;
       case 'staff-hr':
         return <StaffHRModule />;
       case 'inventory':
@@ -202,6 +207,27 @@ export const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout })
                </h1>
                <div className="h-0.5 w-12 bg-purple-500 mt-2 rounded-full" />
            </div>
+        )}
+
+        {incomingGreetings.length > 0 && (
+          <div className="px-6 pt-4">
+            <div className="space-y-3">
+              {incomingGreetings.map((g, idx) => (
+                <motion.div
+                  key={`${g.id}-${idx}`}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex gap-3"
+                >
+                  <Gift className="text-purple-300 shrink-0" size={18} />
+                  <div>
+                    <p className="text-xs text-purple-300 font-bold uppercase tracking-wider">Birthday · {g.senderName}</p>
+                    <p className="text-sm text-white mt-1">{g.content}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         )}
 
         <div className="p-6 max-w-full mx-auto pb-32 w-full">

@@ -29,6 +29,10 @@ export interface SentWish {
   status: 'Sent' | 'Delivered' | 'Pending';
   senderName?: string;
   dashboardSource?: string;
+  sourceDashboardKey?: string;
+  sourceThemeColour?: string;
+  targetDashboardKey?: string;
+  targetThemeColour?: string;
   timeSent?: string;
 }
 

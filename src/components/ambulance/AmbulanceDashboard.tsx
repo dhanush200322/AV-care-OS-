@@ -23,6 +23,7 @@ import { AmbulanceAlertsModule } from './modules/AmbulanceAlertsModule';
 import { AmbulanceReportsModule } from './modules/AmbulanceReportsModule';
 import { AmbulanceSettingsModule } from './modules/AmbulanceSettingsModule';
 import { AmbulanceMessagesModule } from './modules/AmbulanceMessagesModule';
+import { AmbulanceBirthdayModule } from './modules/AmbulanceBirthdayModule';
 import { CommunicationHubLayer } from '../shared/communications/CommunicationHubLayer';
 
 type Toast = { id: string; type: 'success' | 'error' | 'info'; message: string };
@@ -84,6 +85,7 @@ export const AmbulanceDashboard: React.FC<{ onLogout: () => void }> = ({ onLogou
       case 'coordination': return <CoordinationCenterModule {...toastProps} />;
       case 'alerts': return <AmbulanceAlertsModule {...toastProps} />;
       case 'messages': return <AmbulanceMessagesModule {...toastProps} />;
+      case 'birthdays': return <AmbulanceBirthdayModule />;
       case 'reports': return <AmbulanceReportsModule />;
       case 'settings': return <AmbulanceSettingsModule {...toastProps} />;
       default: return <AmbulanceDashboardOverview />;
